@@ -1,0 +1,26 @@
+{
+  "name": "wealthtrack-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.0.0",
+    "@hono/zod-validator": "^0.7.0",
+    "async-mutex": "^0.5.0",
+    "hono": "^4.12.14",
+    "write-file-atomic": "^7.0.1",
+    "yaml": "^2.8.3",
+    "zod": "^3.24.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/write-file-atomic": "^4.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.3"
+  }
+}

@@ -1,0 +1,24 @@
+# Env
+.env
+.env.local
+
+# Node / Vite
+web/node_modules/
+web/dist/
+web/.vite/
+server/node_modules/
+server/dist/
+npm-debug.log*
+*.log
+logs/
+
+# Local data — never commit personal finance data
+/data/
+server/data/
+
+# Editor
+.idea/
+.vscode/
+.DS_Store
+web/tsconfig.tsbuildinfo
+.playwright-mcp/

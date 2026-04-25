@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #09090b;
+  color: #f4f4f5;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Remove browser default link underlines (Tailwind preflight is off) */
+a {
+  text-decoration: none;
+}
+
+/* Recently-added DataPoint rows (< 10 min old) — muted amber for dark bg */
+.row-recent > td {
+  background-color: #422006 !important;
+}
