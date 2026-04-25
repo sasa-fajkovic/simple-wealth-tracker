@@ -155,13 +155,19 @@ async function handleForceConfirm() {
 
     <Skeleton v-if="loading" height="8rem" border-radius="8px" />
 
+    <div v-else-if="!error && displayRows.length === 0"
+      class="flex flex-col items-center justify-center py-16 text-center text-gray-400 dark:text-zinc-500">
+      <i class="pi pi-inbox text-4xl mb-4 opacity-40" />
+      <p class="text-base font-medium mb-1">No {{ tabLabel.toLowerCase() }} yet</p>
+      <p class="text-sm">Click <strong>+ Add {{ tabLabel }}</strong> to get started.</p>
+    </div>
+
     <DataTable
-      v-if="!loading && !error"
+      v-else-if="!loading && !error"
       :value="displayRows"
       :sort-field="sortField"
       :sort-order="sortOrder"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
-      :empty-message="`No ${tabLabel.toLowerCase()} yet. Click 'Add ${tabLabel}' to get started.`"
       striped-rows
       size="small"
     >

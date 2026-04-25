@@ -197,17 +197,29 @@ function clearFilters() {
 
     <Skeleton v-if="loading" height="8rem" border-radius="8px" />
 
+    <div v-else-if="!error && rows.length === 0"
+      class="flex flex-col items-center justify-center py-16 text-center text-gray-400 dark:text-zinc-500">
+      <i class="pi pi-chart-line text-4xl mb-4 opacity-40" />
+      <p class="text-base font-medium mb-1">No data points yet</p>
+      <p class="text-sm">Click <strong>+ Add Data Point</strong> to record your first value.</p>
+    </div>
+
     <DataTable
-      v-if="!loading && !error"
+      v-else-if="!loading && !error"
       :value="displayRows"
       :sort-field="sortField"
       :sort-order="sortOrder"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as -1 | 1) ?? sortOrder }"
       :row-class="(row: typeof displayRows.value[number]) => row.isRecent ? 'row-recent' : ''"
-      empty-message="No data points match the current filters."
       striped-rows
       size="small"
     >
+      <template #empty>
+        <div class="flex flex-col items-center justify-center py-10 text-center text-gray-400 dark:text-zinc-500">
+          <i class="pi pi-filter-slash text-3xl mb-3 opacity-40" />
+          <p class="text-sm">No data points match the current filters.</p>
+        </div>
+      </template>
       <Column field="year_month" header="Date" sortable />
       <Column field="assetName" header="Asset" sortable />
       <Column field="categoryName" header="Category" sortable />

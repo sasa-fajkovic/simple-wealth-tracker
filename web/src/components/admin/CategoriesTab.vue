@@ -163,16 +163,28 @@ function closeDeleteDialog() {
 
     <Skeleton v-if="loading" height="8rem" border-radius="8px" />
 
+    <div v-else-if="!error && rows.length === 0"
+      class="flex flex-col items-center justify-center py-16 text-center text-gray-400 dark:text-zinc-500">
+      <i class="pi pi-tags text-4xl mb-4 opacity-40" />
+      <p class="text-base font-medium mb-1">No categories yet</p>
+      <p class="text-sm">Click <strong>+ Add Category</strong> to get started.</p>
+    </div>
+
     <DataTable
-      v-if="!loading && !error"
+      v-else-if="!loading && !error"
       :value="filteredRows"
       :sort-field="sortField"
       :sort-order="sortOrder"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
-      empty-message="No categories yet. Click 'Add Category' to get started."
       striped-rows
       size="small"
     >
+      <template #empty>
+        <div class="flex flex-col items-center justify-center py-10 text-center text-gray-400 dark:text-zinc-500">
+          <i class="pi pi-filter-slash text-3xl mb-3 opacity-40" />
+          <p class="text-sm">No categories match the selected filter.</p>
+        </div>
+      </template>
       <Column field="name" header="Name" sortable />
       <Column field="id" header="Slug" />
       <Column field="type" header="Type" sortable>

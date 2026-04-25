@@ -130,13 +130,19 @@ function setReassignTo(val: string) {
 
     <Skeleton v-if="loading" height="8rem" border-radius="8px" />
 
+    <div v-else-if="!error && rows.length === 0"
+      class="flex flex-col items-center justify-center py-16 text-center text-gray-400 dark:text-zinc-500">
+      <i class="pi pi-users text-4xl mb-4 opacity-40" />
+      <p class="text-base font-medium mb-1">No people yet</p>
+      <p class="text-sm">Click <strong>+ Add Person</strong> to get started.</p>
+    </div>
+
     <DataTable
-      v-if="!loading && !error"
+      v-else-if="!loading && !error"
       :value="rows"
       :sort-field="sortField"
       :sort-order="sortOrder"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
-      empty-message="No people yet. Click 'Add Person' to get started."
       striped-rows
       size="small"
     >
