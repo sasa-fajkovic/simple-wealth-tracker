@@ -38,6 +38,7 @@ const categoryType = ref<'asset' | 'cash-inflow' | 'liability'>(
 const validationError = ref<string | null>(null)
 
 const slugPreview = computed(() => props.mode === 'create' ? toSlug(name.value) : props.item!.id)
+const isLiability = computed(() => categoryType.value === 'liability')
 const colorHex = computed({
   get: () => color.value.replace('#', ''),
   set: (v: string) => { color.value = '#' + v },
@@ -50,6 +51,10 @@ function handleSubmit() {
   }
   if (rateInput.value === null) {
     validationError.value = 'Growth rate is required'
+    return
+  }
+  if (categoryType.value === 'liability' && rateInput.value > 0) {
+    validationError.value = 'Liability growth rate must be zero or negative'
     return
   }
   validationError.value = null
@@ -97,7 +102,8 @@ function handleSubmit() {
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Growth Rate %</label>
-      <InputNumber v-model="rateInput" suffix=" %" :min-fraction-digits="0" :max-fraction-digits="4" class="w-full" placeholder="e.g. 8" />
+      <InputNumber v-model="rateInput" suffix=" %" :min-fraction-digits="0" :max-fraction-digits="4" :max="isLiability ? 0 : undefined" class="w-full" placeholder="e.g. 8" />
+      <p v-if="isLiability" class="text-xs text-orange-500 mt-1">Liabilities grow in debt — use zero or a negative rate (e.g. -5 if being paid off).</p>
     </div>
     <div class="mb-4">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Color</label>

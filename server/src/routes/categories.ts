@@ -16,15 +16,20 @@ const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
   }
 }
 
-const createSchema = z.object({
+const baseSchema = z.object({
   name: z.string().min(1, 'name is required'),
   projected_yearly_growth: z.number(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'color must be a 6-digit hex color'),
   type: z.enum(['asset', 'cash-inflow', 'liability']),
 })
 
+const liabilityGrowthCheck = (d: { type: string; projected_yearly_growth: number }) =>
+  !(d.type === 'liability' && d.projected_yearly_growth > 0)
+const liabilityGrowthMsg = { message: 'Liability growth rate must be zero or negative', path: ['projected_yearly_growth'] }
+
+const createSchema = baseSchema.refine(liabilityGrowthCheck, liabilityGrowthMsg)
 // id is optional here only to detect change attempts in PUT — not required on create
-const updateSchema = createSchema.extend({ id: z.string().optional() })
+const updateSchema = baseSchema.extend({ id: z.string().optional() }).refine(liabilityGrowthCheck, liabilityGrowthMsg)
 
 // MODEL-01: id is a URL-safe slug derived from name
 function toSlug(name: string): string {
