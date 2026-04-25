@@ -21,17 +21,32 @@ const TYPE_OPTIONS = [
 const props = defineProps<{
   mode: 'create' | 'edit'
   item?: Category
+  existingColors?: string[]
   saving: boolean
   saveError: string | null
   onSave: (payload: CreateCategoryPayload | UpdateCategoryPayload) => void
   onCancel: () => void
 }>()
 
+const PALETTE = [
+  '#6366f1','#f43f5e','#10b981','#f59e0b','#3b82f6','#8b5cf6',
+  '#ec4899','#14b8a6','#f97316','#06b6d4','#84cc16','#a855f7',
+  '#22c55e','#ef4444','#0ea5e9','#d946ef','#fb923c','#4ade80',
+  '#60a5fa','#e879f9','#34d399','#fbbf24','#818cf8','#fb7185',
+]
+
+function pickUniqueColor(): string {
+  const used = new Set((props.existingColors ?? []).map(c => c.toLowerCase()))
+  const available = PALETTE.filter(c => !used.has(c.toLowerCase()))
+  const pool = available.length > 0 ? available : PALETTE
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
 const name = ref(props.mode === 'edit' ? props.item!.name : '')
 const rateInput = ref<number | null>(
   props.mode === 'edit' ? props.item!.projected_yearly_growth * 100 : null
 )
-const color = ref(props.mode === 'edit' ? props.item!.color : '#6366f1')
+const color = ref(props.mode === 'edit' ? props.item!.color : pickUniqueColor())
 const categoryType = ref<'asset' | 'cash-inflow' | 'liability'>(
   props.mode === 'edit' ? props.item!.type : 'asset'
 )

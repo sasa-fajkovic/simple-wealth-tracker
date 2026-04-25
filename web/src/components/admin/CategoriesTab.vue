@@ -116,10 +116,6 @@ const filteredRows = computed(() => {
   return rows.value.filter(c => c.type === typeFilter.value)
 })
 
-const editItem = computed(() =>
-  modal.value?.mode === 'edit' ? (modal.value as { mode: 'edit'; item: Category }).item : undefined
-)
-
 const otherCategoryOptions = computed(() => {
   if (deleteState.value?.phase !== 'reassign') return []
   return rows.value
@@ -268,7 +264,8 @@ function closeDeleteDialog() {
     <CategoryModal
       v-if="modal"
       :mode="modal.mode"
-      :item="editItem"
+      :item="modal.mode === 'edit' ? modal.item : undefined"
+      :existing-colors="rows.map(r => r.color)"
       :saving="saving"
       :save-error="saveError"
       :on-save="handleSave"
