@@ -102,6 +102,20 @@ async function handleReassignConfirm() {
   }
 }
 
+const TYPE_FILTER_OPTIONS = [
+  { label: 'All Types', value: '' },
+  { label: 'Asset', value: 'asset' },
+  { label: 'Cash Inflow', value: 'cash-inflow' },
+  { label: 'Liability', value: 'liability' },
+]
+
+const typeFilter = ref('')
+
+const filteredRows = computed(() => {
+  if (!typeFilter.value) return rows.value
+  return rows.value.filter(c => c.type === typeFilter.value)
+})
+
 const editItem = computed(() =>
   modal.value?.mode === 'edit' ? (modal.value as { mode: 'edit'; item: Category }).item : undefined
 )
@@ -130,7 +144,17 @@ function closeDeleteDialog() {
   <div>
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-sm font-medium text-gray-700 dark:text-zinc-300">Categories</h2>
-      <Button label="Add Category" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
+      <div class="flex items-center gap-2">
+        <Select
+          v-model="typeFilter"
+          :options="TYPE_FILTER_OPTIONS"
+          option-label="label"
+          option-value="value"
+          size="small"
+          class="w-40"
+        />
+        <Button label="Add Category" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
+      </div>
     </div>
 
     <div v-if="error" class="mb-4">
@@ -144,7 +168,7 @@ function closeDeleteDialog() {
 
     <DataTable
       v-if="!loading && !error"
-      :value="rows"
+      :value="filteredRows"
       :sort-field="sortField"
       :sort-order="sortOrder"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
