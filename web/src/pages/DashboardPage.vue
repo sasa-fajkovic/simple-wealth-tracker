@@ -18,7 +18,7 @@ const RANGES: { label: string; value: RangeKey }[] = [
   { label: '10Y', value: '10y' }, { label: 'Max', value: 'max' },
 ]
 
-const range = ref<RangeKey>('1y')
+const range = ref<RangeKey>('10y')
 const persons = ref<Person[]>([])
 const person = ref<string | null>(null)
 const data = ref<SummaryResponse | null>(null)

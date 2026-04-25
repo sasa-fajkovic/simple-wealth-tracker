@@ -146,7 +146,10 @@ function setReassignTo(val: string) {
         <template #body="{ data: row }">
           <div class="flex items-center gap-2">
             <Button icon="pi pi-pencil" text size="small" aria-label="Edit" @click="modal = { mode: 'edit', item: row }" />
-            <Button icon="pi pi-trash" text size="small" severity="danger" aria-label="Delete" @click="handleDeleteClick(row)" />
+            <Button icon="pi pi-trash" text size="small" severity="danger" aria-label="Delete"
+              :disabled="rows.length === 1"
+              v-tooltip.top="rows.length === 1 ? 'Cannot delete the only person — assets cannot be reassigned' : undefined"
+              @click="handleDeleteClick(row)" />
           </div>
         </template>
       </Column>
@@ -191,6 +194,7 @@ function setReassignTo(val: string) {
             severity="danger"
             size="small"
             :loading="deleting"
+            :disabled="otherPersonOptions.length === 0 || !deleteState.reassignTo"
             @click="handleReassignConfirm"
           />
           <Button
