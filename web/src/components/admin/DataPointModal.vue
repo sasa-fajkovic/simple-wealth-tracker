@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import type { DataPoint, Asset, CreateDataPointPayload, UpdateDataPointPayload } from '../../types/index'
+import { ref, computed } from 'vue'
+import type { DataPoint, Asset, Person, CreateDataPointPayload, UpdateDataPointPayload } from '../../types/index'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -11,17 +11,34 @@ const props = defineProps<{
   mode: 'create' | 'edit'
   item?: DataPoint
   assets: Asset[]
+  persons: Person[]
   saving: boolean
   saveError: string | null
   onSave: (payload: CreateDataPointPayload | UpdateDataPointPayload) => void
   onCancel: () => void
 }>()
 
+// "Everyone" sentinel — empty string means no filter
+const personFilter = ref<string>('')
 const assetId = ref(props.mode === 'edit' ? props.item!.asset_id : '')
 const yearMonth = ref(props.mode === 'edit' ? props.item!.year_month : '')
 const value = ref<number | null>(props.mode === 'edit' ? props.item!.value : null)
 const notes = ref(props.mode === 'edit' ? (props.item!.notes ?? '') : '')
 const validationError = ref<string | null>(null)
+
+const personFilterOptions = computed(() => [
+  { id: '', name: 'Everyone' },
+  ...props.persons,
+])
+
+const filteredAssets = computed(() =>
+  personFilter.value === '' ? props.assets : props.assets.filter(a => a.person_id === personFilter.value)
+)
+
+function onPersonFilterChange() {
+  // Reset asset selection when person filter changes (create mode only)
+  if (props.mode === 'create') assetId.value = ''
+}
 
 function handleSubmit() {
   if (!assetId.value) {
@@ -51,11 +68,24 @@ function handleSubmit() {
     modal
     :draggable="false"
   >
+    <template v-if="mode === 'create'">
+      <div class="mb-3">
+        <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Person</label>
+        <Select
+          v-model="personFilter"
+          :options="personFilterOptions"
+          option-label="name"
+          option-value="id"
+          class="w-full"
+          @update:model-value="onPersonFilterChange"
+        />
+      </div>
+    </template>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Asset</label>
       <Select
         v-model="assetId"
-        :options="assets"
+        :options="filteredAssets"
         option-label="name"
         option-value="id"
         placeholder="Select an asset…"

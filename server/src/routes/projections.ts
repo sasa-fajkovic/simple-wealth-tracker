@@ -28,7 +28,10 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const { db, dataPoints } = await readDbAndDataPoints()
 
   // Exclude cash-inflow-only categories from projections (same as net-worth chart)
-  const wealthCategories = db.categories.filter(c => !c.track_only)
+  const wealthCategories = db.categories.filter(c => {
+    const t = c.type ?? (c.track_only ? 'cash-inflow' : 'asset')
+    return t !== 'cash-inflow'
+  })
   const wealthAssetIds = new Set(
     db.assets.filter(a => wealthCategories.some(c => c.id === a.category_id)).map(a => a.id)
   )

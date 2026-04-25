@@ -11,6 +11,7 @@ function makeAsset(id: string, categoryId = 'cat1'): Asset {
     name: id,
     category_id: categoryId,
     projected_yearly_growth: null,
+    person_id: 'test-person',
     created_at: '2024-01-01T00:00:00.000Z',
   }
 }
@@ -92,7 +93,7 @@ describe('locfFill', () => {
 // ── aggregateSummary ──────────────────────────────────────────────────────────
 
 function makeCategory(id: string, name: string, color = '#000000'): Category {
-  return { id, name, projected_yearly_growth: 0.07, color }
+  return { id, name, projected_yearly_growth: 0.07, color, type: 'asset' }
 }
 
 describe('aggregateSummary', () => {

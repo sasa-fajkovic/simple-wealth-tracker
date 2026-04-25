@@ -9,7 +9,9 @@ export interface Category {
   name: string
   projected_yearly_growth: number  // decimal, e.g. 0.08 = 8% annual
   color: string                    // hex, e.g. '#6366f1'
-  track_only?: boolean             // if true: excluded from net-worth; shown on Cash Inflow page
+  type: 'asset' | 'cash-inflow' | 'liability'
+  /** @deprecated Use `type`. Present on pre-v2 records only. */
+  track_only?: boolean
 }
 
 export interface Asset {
@@ -19,7 +21,7 @@ export interface Asset {
   projected_yearly_growth: number | null   // null = inherit from parent Category (NOT optional ?)
   location?: string
   notes?: string
-  person_id?: string | null                // null = unassigned; string = Person.id
+  person_id: string                                // required; every asset must belong to a person
   created_at: string                       // ISO 8601 timestamp, immutable
 }
 
@@ -47,14 +49,14 @@ export interface CreateCategoryPayload {
   name: string
   projected_yearly_growth: number
   color: string
-  track_only?: boolean
+  type: 'asset' | 'cash-inflow' | 'liability'
 }
 
 export interface UpdateCategoryPayload {
   name: string
   projected_yearly_growth: number
   color: string
-  track_only?: boolean
+  type: 'asset' | 'cash-inflow' | 'liability'
 }
 
 export interface CreateAssetPayload {
@@ -64,7 +66,7 @@ export interface CreateAssetPayload {
   projected_yearly_growth: number | null
   location?: string
   notes?: string
-  person_id?: string | null   // null = unassigned
+  person_id: string   // required
 }
 
 export interface UpdateAssetPayload {
@@ -73,7 +75,7 @@ export interface UpdateAssetPayload {
   projected_yearly_growth: number | null
   location?: string
   notes?: string
-  person_id?: string | null   // null = unassigned
+  person_id: string   // required
 }
 
 export interface CreateDataPointPayload {

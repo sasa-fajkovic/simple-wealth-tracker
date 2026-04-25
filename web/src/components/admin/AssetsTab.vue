@@ -15,6 +15,16 @@ type DeleteState =
   | { phase: 'confirm'; id: string; name: string }
   | { phase: 'force'; id: string; name: string; dataPointCount: number }
 
+const TYPE_LABELS: Record<string, string> = {
+  asset: 'Asset',
+  'cash-inflow': 'Cash Inflow',
+  liability: 'Liability',
+}
+
+const props = defineProps<{
+  categoryType: 'asset' | 'cash-inflow' | 'liability'
+}>()
+
 const rows = ref<Asset[]>([])
 const categories = ref<Category[]>([])
 const persons = ref<Person[]>([])
@@ -47,12 +57,27 @@ watch(retryCount, async () => {
 const categoryMap = computed(() => Object.fromEntries(categories.value.map(c => [c.id, c])))
 const personMap = computed(() => Object.fromEntries(persons.value.map(p => [p.id, p])))
 
-const displayRows = computed(() => rows.value.map(asset => ({
-  ...asset,
-  categoryName: categoryMap.value[asset.category_id]?.name ?? asset.category_id,
-  personName: personMap.value[asset.person_id ?? '']?.name ?? '—',
-  growthFormatted: asset.projected_yearly_growth === null ? 'Inherits' : `${(asset.projected_yearly_growth * 100).toFixed(2)}%`,
-})))
+// Only categories matching the current tab type
+const filteredCategories = computed(() =>
+  categories.value.filter(c => {
+    const t = c.type ?? (c.track_only ? 'cash-inflow' : 'asset')
+    return t === props.categoryType
+  })
+)
+const filteredCategoryIds = computed(() => new Set(filteredCategories.value.map(c => c.id)))
+
+const displayRows = computed(() =>
+  rows.value
+    .filter(asset => filteredCategoryIds.value.has(asset.category_id))
+    .map(asset => ({
+      ...asset,
+      categoryName: categoryMap.value[asset.category_id]?.name ?? asset.category_id,
+      personName: personMap.value[asset.person_id ?? '']?.name ?? '—',
+      growthFormatted: asset.projected_yearly_growth === null ? 'Inherits' : `${(asset.projected_yearly_growth * 100).toFixed(2)}%`,
+    }))
+)
+
+const tabLabel = computed(() => TYPE_LABELS[props.categoryType] ?? 'Items')
 
 async function handleSave(payload: CreateAssetPayload | UpdateAssetPayload) {
   saving.value = true
@@ -117,8 +142,8 @@ async function handleForceConfirm() {
 <template>
   <div>
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-medium text-gray-700 dark:text-zinc-300">Assets</h2>
-      <Button label="Add Asset" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
+      <h2 class="text-sm font-medium text-gray-700 dark:text-zinc-300">{{ tabLabel }}</h2>
+      <Button :label="`Add ${tabLabel}`" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
     </div>
 
     <div v-if="error" class="mb-4">
@@ -136,7 +161,7 @@ async function handleForceConfirm() {
       :sort-field="sortField"
       :sort-order="sortOrder"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
-      empty-message="No assets yet. Click 'Add Asset' to get started."
+      :empty-message="`No ${tabLabel.toLowerCase()} yet. Click 'Add ${tabLabel}' to get started.`"
       striped-rows
       size="small"
     >
@@ -204,7 +229,7 @@ async function handleForceConfirm() {
       v-if="modal"
       :mode="modal.mode"
       :item="editItem"
-      :categories="categories"
+      :categories="filteredCategories"
       :persons="persons"
       :saving="saving"
       :save-error="saveError"
@@ -213,3 +238,4 @@ async function handleForceConfirm() {
     />
   </div>
 </template>
+

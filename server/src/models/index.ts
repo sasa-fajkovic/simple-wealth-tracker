@@ -6,7 +6,9 @@ export interface Category {
   name: string
   projected_yearly_growth: number  // decimal, e.g. 0.08 = 8% annual growth
   color: string                    // hex color, e.g. '#6366f1'
-  track_only?: boolean             // if true, excluded from net-worth chart; shown in Cash Inflow page
+  type: 'asset' | 'cash-inflow' | 'liability'
+  /** @deprecated Use `type`. Present on pre-v2 records only; derived at read time. */
+  track_only?: boolean
 }
 
 export interface Person {
@@ -21,7 +23,7 @@ export interface Asset {
   projected_yearly_growth: number | null   // null = inherit from parent Category; NOT optional (?)
   location?: string
   notes?: string
-  person_id?: string | null               // optional; null/undefined = household-level asset
+  person_id: string                        // required; every asset must belong to a person
   created_at: string                       // ISO 8601 timestamp, immutable after create
 }
 

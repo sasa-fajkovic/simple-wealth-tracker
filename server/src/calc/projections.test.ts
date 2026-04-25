@@ -6,12 +6,12 @@ import type { Asset, Category, DataPoint } from '../models/index.js'
 // ── Fixture helpers ────────────────────────────────────────────────────────────
 
 function makeCategory(id: string, growth: number, color = '#000000'): Category {
-  return { id, name: id, projected_yearly_growth: growth, color }
+  return { id, name: id, projected_yearly_growth: growth, color, type: 'asset' }
 }
 
 function makeAsset(id: string, categoryId = 'cat1', growth: number | null = null): Asset {
   return { id, name: id, category_id: categoryId, projected_yearly_growth: growth,
-           created_at: '2024-01-01T00:00:00.000Z' }
+           person_id: 'test-person', created_at: '2024-01-01T00:00:00.000Z' }
 }
 
 function makeDP(assetId: string, yearMonth: string, value: number, updatedAt = '2024-01-01T00:00:00.000Z'): DataPoint {

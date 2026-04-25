@@ -69,12 +69,12 @@ router.put('/:id', zValidator('json', updateSchema, hook), async (c) => {
   return c.json(updated)
 })
 
-// DELETE /api/v1/persons/:id?reassign_to=<person_id|""> — empty string = Unassigned
-// Assets assigned to this person are reassigned before the person is removed.
-// Data points are never touched — they belong to assets, not persons.
+// DELETE /api/v1/persons/:id?reassign_to=<person_id>
+// Assets assigned to this person must be reassigned to another person before deletion
+// (person_id is required on all assets — "unassign" is not allowed).
 router.delete('/:id', async (c) => {
   const id = c.req.param('id')
-  const reassignTo = c.req.query('reassign_to')   // undefined = not provided
+  const reassignTo = c.req.query('reassign_to')   // undefined or empty = not provided
   const db = await readDb()
 
   if (!(db.persons ?? []).find((p) => p.id === id)) {
@@ -83,26 +83,24 @@ router.delete('/:id', async (c) => {
 
   const affected = db.assets.filter((a) => a.person_id === id)
 
-  if (affected.length > 0 && reassignTo === undefined) {
+  if (affected.length > 0 && !reassignTo) {
     // Frontend hasn't confirmed reassignment yet — return affected assets for the dialog
     return c.json({ needs_reassign: true, assets: affected }, 409 as const)
   }
 
-  if (reassignTo && reassignTo !== '' && !(db.persons ?? []).find((p) => p.id === reassignTo)) {
+  if (reassignTo && !(db.persons ?? []).find((p) => p.id === reassignTo)) {
     throw new HTTPException(400, { message: 'reassign_to person not found' })
   }
-
-  const newPersonId = reassignTo && reassignTo !== '' ? reassignTo : null
 
   await mutateDb(
     (db) => ({
       ...db,
       persons: (db.persons ?? []).filter((p) => p.id !== id),
       assets: db.assets.map((a) =>
-        a.person_id === id ? { ...a, person_id: newPersonId } : a
+        a.person_id === id ? { ...a, person_id: reassignTo! } : a
       ),
     }),
-    { action: 'person.delete', meta: { id, reassigned_to: newPersonId } },
+    { action: 'person.delete', meta: { id, reassigned_to: reassignTo ?? null } },
   )
   return c.json({ success: true })
 })

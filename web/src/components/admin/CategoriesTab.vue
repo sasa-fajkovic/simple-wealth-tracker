@@ -6,8 +6,7 @@ import CategoryModal from './CategoryModal.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
-import Message from 'primevue/message'
-import Skeleton from 'primevue/skeleton'
+import Message from 'primevue/message'import Skeleton from 'primevue/skeleton'
 import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
 
@@ -128,10 +127,6 @@ function closeDeleteDialog() {
 
 <template>
   <div>
-    <Message severity="info" class="w-full mb-6">
-      To track debts, create a category (e.g. 'Liabilities') and enter asset values as negative numbers. The total net worth chart will subtract them automatically.
-    </Message>
-
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-sm font-medium text-gray-700 dark:text-zinc-300">Categories</h2>
       <Button label="Add Category" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
@@ -158,6 +153,17 @@ function closeDeleteDialog() {
     >
       <Column field="name" header="Name" sortable />
       <Column field="id" header="Slug" />
+      <Column field="type" header="Type" sortable>
+        <template #body="{ data: row }">
+          <span :class="{
+            'text-blue-600 dark:text-blue-400': row.type === 'asset',
+            'text-green-600 dark:text-green-400': row.type === 'cash-inflow',
+            'text-red-600 dark:text-red-400': row.type === 'liability',
+          }">
+            {{ row.type === 'asset' ? 'Asset' : row.type === 'cash-inflow' ? 'Cash Inflow' : 'Liability' }}
+          </span>
+        </template>
+      </Column>
       <Column field="projected_yearly_growth" header="Growth Rate (%)" sortable>
         <template #body="{ data: row }">{{ (row.projected_yearly_growth * 100).toFixed(2) }}%</template>
       </Column>

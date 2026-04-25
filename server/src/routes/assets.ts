@@ -20,7 +20,7 @@ const createSchema = z.object({
   projected_yearly_growth: z.number().nullable(),
   location: z.string().optional(),
   notes: z.string().optional(),
-  person_id: z.string().nullable().optional(),   // Phase 7: optional person assignment
+  person_id: z.string().min(1, 'person_id is required'),
 })
 
 // id optional only to detect change attempts in PUT

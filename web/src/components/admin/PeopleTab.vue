@@ -76,7 +76,7 @@ async function handleConfirm() {
         id: deleteState.value.id,
         name: deleteState.value.name,
         affectedAssets: result.assets,
-        reassignTo: '',
+      reassignTo: rows.value.find(p => p.id !== deleteState.value!.id)?.id ?? '',
       }
     }
   } finally {
@@ -102,12 +102,9 @@ const editItem = computed(() =>
 
 const otherPersonOptions = computed(() => {
   if (deleteState.value?.phase !== 'reassign') return []
-  return [
-    { label: 'Unassigned', value: '' },
-    ...rows.value
-      .filter(p => p.id !== deleteState.value!.id)
-      .map(p => ({ label: p.name, value: p.id })),
-  ]
+  return rows.value
+    .filter(p => p.id !== deleteState.value!.id)
+    .map(p => ({ label: p.name, value: p.id }))
 })
 
 function setReassignTo(val: string) {
@@ -177,7 +174,7 @@ function setReassignTo(val: string) {
             option-label="label"
             option-value="value"
             class="w-full"
-            placeholder="Select person or Unassigned"
+            placeholder="Select person"
             @update:model-value="setReassignTo"
           />
           <ul class="text-xs text-gray-500 dark:text-zinc-400 list-disc list-inside max-h-32 overflow-y-auto">

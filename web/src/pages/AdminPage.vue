@@ -21,13 +21,17 @@ onMounted(() => {
     <Tabs value="0">
       <TabList>
         <Tab value="0">Assets</Tab>
-        <Tab value="1">Categories</Tab>
-        <Tab value="2">People</Tab>
+        <Tab value="1">Cash Inflow</Tab>
+        <Tab value="2">Liabilities</Tab>
+        <Tab value="3">Categories</Tab>
+        <Tab value="4">People</Tab>
       </TabList>
       <TabPanels>
-        <TabPanel value="0"><AssetsTab /></TabPanel>
-        <TabPanel value="1"><CategoriesTab /></TabPanel>
-        <TabPanel value="2"><PeopleTab /></TabPanel>
+        <TabPanel value="0"><AssetsTab category-type="asset" /></TabPanel>
+        <TabPanel value="1"><AssetsTab category-type="cash-inflow" /></TabPanel>
+        <TabPanel value="2"><AssetsTab category-type="liability" /></TabPanel>
+        <TabPanel value="3"><CategoriesTab /></TabPanel>
+        <TabPanel value="4"><PeopleTab /></TabPanel>
       </TabPanels>
     </Tabs>
   </div>

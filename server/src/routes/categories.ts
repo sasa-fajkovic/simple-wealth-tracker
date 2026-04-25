@@ -19,7 +19,7 @@ const createSchema = z.object({
   name: z.string().min(1, 'name is required'),
   projected_yearly_growth: z.number(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'color must be a 6-digit hex color'),
-  track_only: z.boolean().optional(),
+  type: z.enum(['asset', 'cash-inflow', 'liability']),
 })
 
 // id is optional here only to detect change attempts in PUT — not required on create
@@ -30,10 +30,14 @@ function toSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 }
 
-// CAT-01: GET all categories
+// CAT-01: GET all categories — normalise old records that only have track_only
 router.get('/', async (c) => {
   const db = await readDb()
-  return c.json(db.categories)
+  const categories = db.categories.map(cat => ({
+    ...cat,
+    type: cat.type ?? (cat.track_only ? 'cash-inflow' : 'asset'),
+  } as Category))
+  return c.json(categories)
 })
 
 // CAT-02: POST — validate, generate slug id, persist

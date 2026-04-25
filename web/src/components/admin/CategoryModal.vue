@@ -5,12 +5,18 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import ColorPicker from 'primevue/colorpicker'
-import Checkbox from 'primevue/checkbox'
+import Select from 'primevue/select'
 import Button from 'primevue/button'
 
 function toSlug(name: string): string {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 }
+
+const TYPE_OPTIONS = [
+  { value: 'asset', label: 'Asset' },
+  { value: 'cash-inflow', label: 'Cash Inflow' },
+  { value: 'liability', label: 'Liability' },
+] as const
 
 const props = defineProps<{
   mode: 'create' | 'edit'
@@ -26,7 +32,9 @@ const rateInput = ref<number | null>(
   props.mode === 'edit' ? props.item!.projected_yearly_growth * 100 : null
 )
 const color = ref(props.mode === 'edit' ? props.item!.color : '#6366f1')
-const trackOnly = ref(props.mode === 'edit' ? (props.item!.track_only ?? false) : false)
+const categoryType = ref<'asset' | 'cash-inflow' | 'liability'>(
+  props.mode === 'edit' ? props.item!.type : 'asset'
+)
 const validationError = ref<string | null>(null)
 
 const slugPreview = computed(() => props.mode === 'create' ? toSlug(name.value) : props.item!.id)
@@ -52,14 +60,14 @@ function handleSubmit() {
       name: name.value.trim(),
       projected_yearly_growth: storedRate,
       color: color.value,
-      track_only: trackOnly.value || undefined,
+      type: categoryType.value,
     })
   } else {
     props.onSave({
       name: name.value.trim(),
       projected_yearly_growth: storedRate,
       color: color.value,
-      track_only: trackOnly.value || undefined,
+      type: categoryType.value,
     })
   }
 }
@@ -84,6 +92,10 @@ function handleSubmit() {
         class="w-full bg-gray-50 dark:bg-zinc-950 cursor-not-allowed px-3 py-2 text-sm border border-gray-200 dark:border-zinc-700 rounded-md text-gray-500 dark:text-zinc-400" />
     </div>
     <div class="mb-3">
+      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Type</label>
+      <Select v-model="categoryType" :options="TYPE_OPTIONS" option-label="label" option-value="value" class="w-full" />
+    </div>
+    <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Growth Rate %</label>
       <InputNumber v-model="rateInput" suffix=" %" :min-fraction-digits="0" :max-fraction-digits="4" class="w-full" placeholder="e.g. 8" />
     </div>
@@ -93,13 +105,6 @@ function handleSubmit() {
         <ColorPicker v-model="colorHex" format="hex" />
         <span class="text-sm font-medium text-gray-500 dark:text-zinc-400">{{ color }}</span>
       </div>
-    </div>
-    <div class="mb-4 flex items-center gap-3">
-      <Checkbox v-model="trackOnly" input-id="track_only" :binary="true" />
-      <label for="track_only" class="text-sm text-gray-700 dark:text-zinc-300 cursor-pointer select-none">
-        Cash Inflow tracking only
-        <span class="block text-xs text-gray-400 dark:text-zinc-500 font-normal">Excluded from net-worth chart; appears on the Cash Inflow page instead</span>
-      </label>
     </div>
     <p v-if="validationError" class="text-xs text-red-600 mt-2">{{ validationError }}</p>
     <p v-if="saveError" class="text-xs text-red-600 mt-2">{{ saveError }}</p>

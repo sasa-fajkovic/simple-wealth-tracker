@@ -29,8 +29,11 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const trackingMode = tracking === 'true'
   const { db, dataPoints } = await readDbAndDataPoints()
 
-  // Filter categories by tracking mode: wealth view excludes track_only; cash-inflow view includes only track_only
-  const relevantCategories = db.categories.filter(cat => (cat.track_only === true) === trackingMode)
+  // Filter categories by tracking mode: wealth view shows asset+liability; cash-inflow view shows only cash-inflow
+  const relevantCategories = db.categories.filter(cat => {
+    const t = cat.type ?? (cat.track_only ? 'cash-inflow' : 'asset')
+    return trackingMode ? t === 'cash-inflow' : t !== 'cash-inflow'
+  })
   const relevantCategoryIds = new Set(relevantCategories.map(cat => cat.id))
 
   // Filter assets by category, then optionally by person

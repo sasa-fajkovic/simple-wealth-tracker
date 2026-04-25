@@ -24,7 +24,7 @@ const props = defineProps<{
 
 const name = ref(props.mode === 'edit' ? props.item!.name : '')
 const categoryId = ref(props.mode === 'edit' ? props.item!.category_id : (props.categories[0]?.id ?? ''))
-const personId = ref(props.mode === 'edit' ? (props.item!.person_id ?? '') : '')
+const personId = ref(props.mode === 'edit' ? props.item!.person_id : (props.persons?.[0]?.id ?? ''))
 const rateInput = ref<number | null>(
   props.item?.projected_yearly_growth !== null && props.item?.projected_yearly_growth !== undefined
     ? props.item.projected_yearly_growth * 100
@@ -35,11 +35,7 @@ const notes = ref(props.mode === 'edit' ? (props.item!.notes ?? '') : '')
 const validationError = ref<string | null>(null)
 
 const slugPreview = computed(() => props.mode === 'create' ? toSlug(name.value) : props.item!.id)
-
-const personOptions = computed(() => [
-  { name: '— Unassigned —', id: '' },
-  ...(props.persons ?? []),
-])
+const personOptions = computed(() => props.persons ?? [])
 
 function handleSubmit() {
   if (!name.value.trim()) {
@@ -48,6 +44,10 @@ function handleSubmit() {
   }
   if (!categoryId.value) {
     validationError.value = 'Category is required'
+    return
+  }
+  if (!personId.value) {
+    validationError.value = 'Person is required'
     return
   }
   validationError.value = null
@@ -60,7 +60,7 @@ function handleSubmit() {
       projected_yearly_growth: storedRate,
       location: location.value.trim() || undefined,
       notes: notes.value.trim() || undefined,
-      person_id: personId.value || null,
+      person_id: personId.value,
     })
   } else {
     props.onSave({
@@ -69,7 +69,7 @@ function handleSubmit() {
       projected_yearly_growth: storedRate,
       location: location.value.trim() || undefined,
       notes: notes.value.trim() || undefined,
-      person_id: personId.value || null,
+      person_id: personId.value,
     })
   }
 }
@@ -110,7 +110,7 @@ function handleSubmit() {
       <InputText v-model="notes" class="w-full" />
     </div>
     <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Person (optional)</label>
+      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Person</label>
       <Select v-model="personId" :options="personOptions" option-label="name" option-value="id" class="w-full" />
     </div>
     <p v-if="validationError" class="text-xs text-red-600 mt-2">{{ validationError }}</p>
