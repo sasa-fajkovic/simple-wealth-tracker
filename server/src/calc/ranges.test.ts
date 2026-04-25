@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { getRangeBounds } from './ranges.js'
 
 // ── Fixed test anchor: 2024-12 as latestMonth ────────────────────────────────
-// All time-based ranges (6m, 1y, ...) use latestMonth as anchor, not current date.
+// Fixed ranges (6m, 1y, ...) anchor to max(latestMonth, currentMonth).
 // earliestMonth is only used by 'max' range.
 
 describe('getRangeBounds', () => {
@@ -75,5 +75,17 @@ describe('getRangeBounds', () => {
     const r = getRangeBounds('6m', '2024-03', '2020-01')
     assert.equal(r.startYM, '2023-10')
     assert.equal(r.endYM, '2024-03')
+  })
+
+  test('currentMonth anchor: fixed range anchors to currentMonth when later than latestMonth', () => {
+    // latestMonth = 2019-12, currentMonth = 2025-04 → 1y should end at 2025-04
+    const r = getRangeBounds('1y', '2019-12', '2019-01', '2025-04')
+    assert.equal(r.endYM, '2025-04')
+    assert.equal(r.startYM, '2024-05')
+  })
+
+  test('currentMonth anchor: max range always uses latestMonth regardless of currentMonth', () => {
+    const r = getRangeBounds('max', '2019-12', '2019-01', '2025-04')
+    assert.equal(r.endYM, '2019-12')
   })
 })

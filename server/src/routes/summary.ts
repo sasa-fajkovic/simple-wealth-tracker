@@ -58,7 +58,7 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
         relevantDPs[0].year_month
       )
 
-  const { startYM, endYM } = getRangeBounds(range, latestMonth, earliestMonth)
+  const { startYM, endYM } = getRangeBounds(range, latestMonth, earliestMonth, currentMonth)
   const months = monthRange(startYM, endYM)
   const locfData = locfFill(months, dataPoints, filteredAssets)
 
