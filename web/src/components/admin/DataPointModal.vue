@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { DataPoint, Asset, Person, CreateDataPointPayload, UpdateDataPointPayload } from '../../types/index'
+import type { DataPoint, Asset, Category, Person, CreateDataPointPayload, UpdateDataPointPayload } from '../../types/index'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -11,6 +11,7 @@ const props = defineProps<{
   mode: 'create' | 'edit'
   item?: DataPoint
   assets: Asset[]
+  categories: Category[]
   persons: Person[]
   saving: boolean
   saveError: string | null
@@ -35,6 +36,16 @@ const filteredAssets = computed(() =>
   personFilter.value === '' ? props.assets : props.assets.filter(a => a.person_id === personFilter.value)
 )
 
+// Derive the category type of the currently selected asset
+const selectedCategoryType = computed(() => {
+  const asset = props.assets.find(a => a.id === assetId.value)
+  if (!asset) return null
+  const cat = props.categories.find(c => c.id === asset.category_id)
+  return cat?.type ?? (cat?.track_only ? 'cash-inflow' : 'asset')
+})
+
+const isLiability = computed(() => selectedCategoryType.value === 'liability')
+
 function onPersonFilterChange() {
   // Reset asset selection when person filter changes (create mode only)
   if (props.mode === 'create') assetId.value = ''
@@ -47,6 +58,10 @@ function handleSubmit() {
   }
   if (value.value === null || value.value === undefined || !isFinite(value.value)) {
     validationError.value = 'Please enter a valid number'
+    return
+  }
+  if (isLiability.value && value.value > 0) {
+    validationError.value = 'Liability values must be zero or negative'
     return
   }
   validationError.value = null
@@ -104,7 +119,8 @@ function handleSubmit() {
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Value (EUR)</label>
-      <InputNumber v-model="value" mode="decimal" :min-fraction-digits="0" :max-fraction-digits="0" :min="-999999999" class="w-full" />
+      <InputNumber v-model="value" mode="decimal" :min-fraction-digits="0" :max-fraction-digits="0" :min="-999999999" :max="isLiability ? 0 : undefined" class="w-full" />
+      <p v-if="isLiability" class="text-xs text-orange-500 dark:text-orange-400 mt-1">Liability — enter a negative value (e.g. -50000 for a €50,000 debt)</p>
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Notes (optional)</label>

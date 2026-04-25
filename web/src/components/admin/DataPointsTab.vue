@@ -236,6 +236,7 @@ function clearFilters() {
       :mode="modal.mode"
       :item="editItem"
       :assets="assets"
+      :categories="categories"
       :persons="persons"
       :saving="saving"
       :save-error="saveError"

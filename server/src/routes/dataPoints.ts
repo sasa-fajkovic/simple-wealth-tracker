@@ -46,8 +46,15 @@ router.post('/', zValidator('json', createSchema, hook), async (c) => {
   const body = c.req.valid('json')
 
   const db = await readDb()
-  if (!db.assets.find((a) => a.id === body.asset_id)) {
+  const asset = db.assets.find((a) => a.id === body.asset_id)
+  if (!asset) {
     throw new HTTPException(404, { message: 'Asset not found' })
+  }
+
+  const category = db.categories.find((cat) => cat.id === asset.category_id)
+  const categoryType = category?.type ?? (category?.track_only ? 'cash-inflow' : 'asset')
+  if (categoryType === 'liability' && body.value > 0) {
+    throw new HTTPException(400, { message: 'Liability values must be zero or negative' })
   }
 
   const now = new Date().toISOString()
@@ -79,6 +86,16 @@ router.put('/:id', zValidator('json', updateSchema, hook), async (c) => {
 
   if (body.asset_id !== undefined && body.asset_id !== existing.asset_id) {
     throw new HTTPException(400, { message: 'asset_id cannot be changed' })
+  }
+
+  if (body.value !== undefined) {
+    const db = await readDb()
+    const asset = db.assets.find((a) => a.id === existing.asset_id)
+    const category = db.categories.find((cat) => cat.id === asset?.category_id)
+    const categoryType = category?.type ?? (category?.track_only ? 'cash-inflow' : 'asset')
+    if (categoryType === 'liability' && body.value > 0) {
+      throw new HTTPException(400, { message: 'Liability values must be zero or negative' })
+    }
   }
 
   // Destructure immutable fields out so they are never overridden from body
