@@ -36,9 +36,16 @@ function subtractMonths(ym: string, n: number): string {
 export function getRangeBounds(
   range: string,
   latestMonth: string,
-  earliestMonth: string
+  earliestMonth: string,
+  currentMonth?: string
 ): { startYM: string; endYM: string } {
-  const endYM = latestMonth
+  // For fixed ranges (not max), anchor the end to currentMonth so that e.g. "1Y"
+  // always means "last 12 months ending today" — not "ending at the last data point".
+  // This avoids showing stale historical windows when data hasn't been updated recently.
+  const anchor = currentMonth && range !== 'max' && currentMonth > latestMonth
+    ? currentMonth
+    : latestMonth
+  const endYM = anchor
 
   switch (range) {
     case '6m':  return { startYM: subtractMonths(endYM, 5),   endYM }
