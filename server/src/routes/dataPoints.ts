@@ -3,8 +3,9 @@ import { HTTPException } from 'hono/http-exception'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
-import { readDb, readDataPoints, mutateDataPoints } from '../storage/index.js'
+import { categoryType as getCategoryType } from '../models/index.js'
 import type { DataPoint } from '../models/index.js'
+import { readDb, readDataPoints, mutateDataPoints } from '../storage/index.js'
 
 const router = new Hono()
 
@@ -52,8 +53,8 @@ router.post('/', zValidator('json', createSchema, hook), async (c) => {
   }
 
   const category = db.categories.find((cat) => cat.id === asset.category_id)
-  const categoryType = category?.type ?? (category?.track_only ? 'cash-inflow' : 'asset')
-  if (categoryType === 'liability' && body.value > 0) {
+  const catType = category ? getCategoryType(category) : 'asset'
+  if (catType === 'liability' && body.value > 0) {
     throw new HTTPException(400, { message: 'Liability values must be zero or negative' })
   }
 
@@ -92,8 +93,8 @@ router.put('/:id', zValidator('json', updateSchema, hook), async (c) => {
     const db = await readDb()
     const asset = db.assets.find((a) => a.id === existing.asset_id)
     const category = db.categories.find((cat) => cat.id === asset?.category_id)
-    const categoryType = category?.type ?? (category?.track_only ? 'cash-inflow' : 'asset')
-    if (categoryType === 'liability' && body.value > 0) {
+    const catType = category ? getCategoryType(category) : 'asset'
+    if (catType === 'liability' && body.value > 0) {
       throw new HTTPException(400, { message: 'Liability values must be zero or negative' })
     }
   }

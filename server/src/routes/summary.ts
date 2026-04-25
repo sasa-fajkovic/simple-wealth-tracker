@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDbAndDataPoints } from '../storage/index.js'
+import { categoryType as getCategoryType } from '../models/index.js'
 import { toMonthKey, monthRange } from '../calc/utils.js'
 import { getRangeBounds } from '../calc/ranges.js'
 import { locfFill, aggregateSummary } from '../calc/summary.js'
@@ -31,7 +32,7 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
 
   // Filter categories by tracking mode: wealth view shows asset+liability; cash-inflow view shows only cash-inflow
   const relevantCategories = db.categories.filter(cat => {
-    const t = cat.type ?? (cat.track_only ? 'cash-inflow' : 'asset')
+    const t = getCategoryType(cat)
     return trackingMode ? t === 'cash-inflow' : t !== 'cash-inflow'
   })
   const relevantCategoryIds = new Set(relevantCategories.map(cat => cat.id))

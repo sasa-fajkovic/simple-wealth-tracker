@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDbAndDataPoints } from '../storage/index.js'
+import { categoryType as getCategoryType } from '../models/index.js'
 import { toMonthKey, monthRange } from '../calc/utils.js'
 import { getRangeBounds } from '../calc/ranges.js'
 import { locfFill, aggregateSummary } from '../calc/summary.js'
@@ -29,7 +30,7 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
 
   // Exclude cash-inflow-only categories from projections (same as net-worth chart)
   const wealthCategories = db.categories.filter(c => {
-    const t = c.type ?? (c.track_only ? 'cash-inflow' : 'asset')
+    const t = getCategoryType(c)
     return t !== 'cash-inflow'
   })
   const wealthAssetIds = new Set(

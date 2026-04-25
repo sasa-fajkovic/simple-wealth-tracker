@@ -6,6 +6,7 @@ import { DB_PATH, CSV_PATH } from './storage/index.js'
 import { encodeDataPoints } from './storage/csv.js'
 import { SEED_CATEGORIES } from './models/seed.js'
 import type { Database } from './models/index.js'
+import { categoryType } from './models/index.js'
 import { auditLog } from './audit/index.js'
 
 export async function bootstrapDatabase(): Promise<void> {
@@ -64,5 +65,20 @@ export async function bootstrapDatabase(): Promise<void> {
     }
     // Strip dataPoints from YAML regardless (even if empty array) to finalize migration
     await writeFileAtomic(DB_PATH, stringify(withoutDataPoints, { lineWidth: 0 }))
+  }
+
+  // Category type migration (M-02): backfill `type` field for old records that only have
+  // `track_only`. Idempotent — skipped when all categories already have `type`.
+  const needsMigration = current.categories?.some(cat => cat.type === undefined) ?? false
+  if (needsMigration) {
+    const migrated = current.categories.map(cat => ({
+      ...cat,
+      type: categoryType(cat),
+    }))
+    const updated: Database = { ...current, categories: migrated }
+    await writeFileAtomic(DB_PATH, stringify(updated, { lineWidth: 0 }))
+    const count = current.categories.filter(cat => cat.type === undefined).length
+    console.log(`Backfilled category type on ${count} old record(s) in ${DB_PATH}`)
+    await auditLog('database.migrate_category_type', { backfilled: count })
   }
 }

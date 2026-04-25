@@ -11,6 +11,13 @@ export interface Category {
   track_only?: boolean
 }
 
+/**
+ * Resolve the category type, falling back to the deprecated `track_only` flag
+ * for records written before the `type` field existed.
+ */
+export function categoryType(cat: Pick<Category, 'type' | 'track_only'>): 'asset' | 'cash-inflow' | 'liability' {
+  return cat.type ?? (cat.track_only ? 'cash-inflow' : 'asset')
+}
 export interface Person {
   id: string    // URL-safe slug, immutable after create
   name: string

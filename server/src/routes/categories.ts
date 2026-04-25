@@ -3,6 +3,7 @@ import { HTTPException } from 'hono/http-exception'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDb, mutateDb } from '../storage/index.js'
+import { categoryType as getCategoryType } from '../models/index.js'
 import type { Category } from '../models/index.js'
 
 const router = new Hono()
@@ -35,7 +36,7 @@ router.get('/', async (c) => {
   const db = await readDb()
   const categories = db.categories.map(cat => ({
     ...cat,
-    type: cat.type ?? (cat.track_only ? 'cash-inflow' : 'asset'),
+    type: getCategoryType(cat),
   } as Category))
   return c.json(categories)
 })
