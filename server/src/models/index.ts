@@ -38,6 +38,7 @@ export interface DataPoint {
 }
 
 export interface Database {
+  title?: string                   // optional app title shown in nav; defaults to 'WealthTrack'
   categories: Category[]
   assets: Asset[]
   persons: Person[]

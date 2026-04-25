@@ -8,15 +8,29 @@ const { theme, toggle } = useTheme()
 
 const open = ref(false)
 const menuRef = ref<HTMLElement | null>(null)
+const appTitle = ref('WealthTrack')
+
+onMounted(async () => {
+  document.addEventListener('mousedown', handleOutsideClick)
+  try {
+    const res = await fetch('/api/v1/config')
+    const data = await res.json()
+    if (data.title) {
+      appTitle.value = data.title
+      document.title = data.title
+    }
+  } catch {
+    // keep default
+  }
+})
+
+onUnmounted(() => document.removeEventListener('mousedown', handleOutsideClick))
 
 function handleOutsideClick(e: MouseEvent) {
   if (open.value && menuRef.value && !menuRef.value.contains(e.target as Node)) {
     open.value = false
   }
 }
-
-onMounted(() => document.addEventListener('mousedown', handleOutsideClick))
-onUnmounted(() => document.removeEventListener('mousedown', handleOutsideClick))
 
 const links = [
   { to: '/', label: 'Dashboard', exact: true },
@@ -37,7 +51,7 @@ const links = [
       to="/"
       class="text-lg font-semibold transition-colors"
       :class="theme === 'dark' ? 'text-zinc-100' : 'text-gray-900'"
-    >WealthTrack</RouterLink>
+    >{{ appTitle }}</RouterLink>
 
     <div class="hidden sm:flex items-center gap-6">
       <RouterLink

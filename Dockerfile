@@ -29,6 +29,8 @@ COPY --from=server-build /server/dist ./dist
 COPY --from=web /web/dist ./web/dist
 
 # Persistent data lives in /data — mount as a Docker volume
+ARG GIT_SHA=dev
+ENV GIT_SHA=$GIT_SHA
 ENV DATA_FILE=/data/database.yaml
 ENV DATA_POINTS_FILE=/data/datapoints.csv
 ENV LOGS_DIR=/data/logs
