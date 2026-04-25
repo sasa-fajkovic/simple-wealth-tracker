@@ -109,7 +109,7 @@ const TYPE_FILTER_OPTIONS = [
   { label: 'Liability', value: 'liability' },
 ]
 
-const typeFilter = ref('')
+const typeFilter = ref<string | null>(null)
 
 const filteredRows = computed(() => {
   if (!typeFilter.value) return rows.value
@@ -142,17 +142,18 @@ function closeDeleteDialog() {
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-medium text-gray-700 dark:text-zinc-300">Categories</h2>
-      <div class="flex items-center gap-2">
-        <Select
-          v-model="typeFilter"
-          :options="TYPE_FILTER_OPTIONS"
-          option-label="label"
-          option-value="value"
-          size="small"
-          class="w-40"
-        />
+    <div class="flex flex-wrap items-center gap-3 mb-4">
+      <Select
+        v-model="typeFilter"
+        :options="TYPE_FILTER_OPTIONS"
+        option-label="label"
+        option-value="value"
+        placeholder="All types"
+        show-clear
+        size="small"
+        class="w-40"
+      />
+      <div class="ml-auto">
         <Button label="Add Category" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
       </div>
     </div>
