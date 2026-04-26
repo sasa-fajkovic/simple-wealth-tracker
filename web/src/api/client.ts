@@ -12,8 +12,6 @@ import type {
   UpdateCategoryPayload,
   CreateAssetPayload,
   UpdateAssetPayload,
-  CreateDataPointPayload,
-  UpdateDataPointPayload,
   CreatePersonPayload,
   UpdatePersonPayload,
 } from '../types/index'
@@ -167,14 +165,6 @@ export interface BatchUpsertResult {
 
 export function batchUpsertDataPoints(data: { items: BatchUpsertItem[] }): Promise<BatchUpsertResult> {
   return apiFetch('/data-points/batch', { method: 'POST', body: JSON.stringify(data) })
-}
-
-export function createDataPoint(data: CreateDataPointPayload): Promise<DataPoint> {
-  return apiFetch('/data-points', { method: 'POST', body: JSON.stringify(data) })
-}
-
-export function updateDataPoint(id: string, data: UpdateDataPointPayload): Promise<DataPoint> {
-  return apiFetch(`/data-points/${id}`, { method: 'PUT', body: JSON.stringify(data) })
 }
 
 export function deleteDataPoint(id: string): Promise<void> {

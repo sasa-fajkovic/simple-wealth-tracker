@@ -18,6 +18,9 @@ type DeleteState =
   | { phase: 'reassign'; id: string; name: string; affectedAssets: Asset[]; reassignTo: string }
 
 const rows = ref<Category[]>([])
+const emit = defineEmits<{
+  'update:count': [count: number]
+}>()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const retryCount = ref(0)
@@ -42,6 +45,8 @@ watch(retryCount, async () => {
     loading.value = false
   }
 }, { immediate: true })
+
+watch(rows, value => emit('update:count', value.length), { immediate: true })
 
 async function handleSave(payload: CreateCategoryPayload | UpdateCategoryPayload) {
   saving.value = true
@@ -110,7 +115,7 @@ async function handleReassignConfirm() {
 const TYPE_FILTER_OPTIONS = [
   { label: 'All Types', value: '' },
   { label: 'Asset', value: 'asset' },
-  { label: 'Cash Inflow', value: 'cash-inflow' },
+  { label: 'Income', value: 'cash-inflow' },
   { label: 'Liability', value: 'liability' },
 ]
 
@@ -139,6 +144,12 @@ function closeDeleteDialog() {
   deleteState.value = null
   reassignError.value = null
 }
+
+function openCreate() {
+  modal.value = { mode: 'create' }
+}
+
+defineExpose({ openCreate })
 </script>
 
 <template>
@@ -154,9 +165,6 @@ function closeDeleteDialog() {
         size="small"
         class="w-40"
       />
-      <div class="ml-auto">
-        <Button label="Add Category" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
-      </div>
     </div>
 
     <div v-if="error" class="mb-4">
@@ -200,7 +208,7 @@ function closeDeleteDialog() {
             'text-green-600 dark:text-green-400': row.type === 'cash-inflow',
             'text-red-600 dark:text-red-400': row.type === 'liability',
           }">
-            {{ row.type === 'asset' ? 'Asset' : row.type === 'cash-inflow' ? 'Cash Inflow' : 'Liability' }}
+            {{ row.type === 'asset' ? 'Asset' : row.type === 'cash-inflow' ? 'Income' : 'Liability' }}
           </span>
         </template>
       </Column>

@@ -35,8 +35,8 @@ onUnmounted(() => {
 const links = [
   { to: '/', label: 'Dashboard', exact: true },
   { to: '/analytics', label: 'Analytics', exact: false },
+  { to: '/income', label: 'Income', exact: false },
   { to: '/projections', label: 'Projections', exact: false },
-  { to: '/cash-inflow', label: 'Cash Inflow', exact: false },
   { to: '/monthly-update', label: 'Monthly Update', exact: false },
   { to: '/admin', label: 'Admin', exact: false },
 ]

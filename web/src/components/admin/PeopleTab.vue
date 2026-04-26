@@ -18,6 +18,9 @@ type DeleteState =
   | { phase: 'reassign'; id: string; name: string; affectedAssets: Asset[]; reassignTo: string }
 
 const rows = ref<Person[]>([])
+const emit = defineEmits<{
+  'update:count': [count: number]
+}>()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const retryCount = ref(0)
@@ -41,6 +44,8 @@ watch(retryCount, async () => {
     loading.value = false
   }
 }, { immediate: true })
+
+watch(rows, value => emit('update:count', value.length), { immediate: true })
 
 async function handleSave(payload: CreatePersonPayload | UpdatePersonPayload) {
   saving.value = true
@@ -117,15 +122,16 @@ function setReassignTo(val: string) {
     deleteState.value = { ...deleteState.value, reassignTo: val }
   }
 }
+
+function openCreate() {
+  modal.value = { mode: 'create' }
+}
+
+defineExpose({ openCreate })
 </script>
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-medium text-gray-700 dark:text-zinc-300">People</h2>
-      <Button label="Add Person" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
-    </div>
-
     <div v-if="error" class="mb-4">
       <Message severity="error" class="w-full">Could not load persons: {{ error }}</Message>
       <div class="mt-2">

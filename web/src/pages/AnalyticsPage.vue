@@ -59,7 +59,7 @@ const RADAR_DIMS: RadarDim[] = [
   { key: 'real_estate',  label: 'Real Estate',   re: /real\s*estate|property|house|apartment|flat|land|nekretnin|stan|kuć|zemlja/i },
   { key: 'crypto',       label: 'Crypto',        re: /crypto|bitcoin|btc|eth(?:ereum)?|coin|token/i },
   { key: 'other',        label: 'Other Assets' },
-  { key: 'inflow',       label: 'Cash Inflow' },
+  { key: 'inflow',       label: 'Income' },
   { key: 'debt',         label: 'Debt' },
 ]
 
@@ -87,16 +87,16 @@ interface ContributorRow {
 }
 
 function categoryTypeLabel(type: CategoryBreakdownRow['category_type']): string {
-  return type === 'cash-inflow' ? 'inflow' : type
+  return type === 'cash-inflow' ? 'income' : type
 }
 
 function drilldownTypeLabel(type: DrilldownType): string {
-  if (type === 'cash-inflow') return 'cash inflow'
+  if (type === 'cash-inflow') return 'income'
   return type === 'liability' ? 'liabilities' : 'assets'
 }
 
 function trackedItemLabel(type: DrilldownType, count: number): string {
-  if (type === 'cash-inflow') return `cash inflow source${count === 1 ? '' : 's'}`
+  if (type === 'cash-inflow') return `income source${count === 1 ? '' : 's'}`
   if (type === 'liability') return `liabilit${count === 1 ? 'y' : 'ies'}`
   return `asset${count === 1 ? '' : 's'}`
 }
@@ -189,7 +189,7 @@ const contributorModes: { label: string; value: ContributorMode }[] = [
 const drilldownTypeOptions: { label: string; value: DrilldownType }[] = [
   { label: 'Assets', value: 'asset' },
   { label: 'Liabilities', value: 'liability' },
-  { label: 'Cash Inflow', value: 'cash-inflow' },
+  { label: 'Income', value: 'cash-inflow' },
 ]
 
 const personNameById = computed(() =>
@@ -561,7 +561,7 @@ const polarOptions = computed((): ChartOptions<'polarArea'> => {
   }
 })
 
-// ── Chart 6: Mixed – Net Worth bars + Cash Inflow or Gross Assets line ────────
+// ── Chart 6: Mixed – Net Worth bars + Income or Gross Assets line ─────────────
 const hasCashInflowSeries = computed(() =>
   data.value?.series.some(s => s.category_type === 'cash-inflow' && s.values.some(v => v !== 0)) ?? false
 )
@@ -577,7 +577,7 @@ const mixedData = computed((): { labels: string[]; datasets: MixedDataset[] } =>
     cashInflowSeries.reduce((sum, s) => sum + s.values[i], 0)
   )
 
-  const overlayLabel = hasCashInflowSeries.value ? 'Cash Inflow' : 'Gross Assets'
+  const overlayLabel = hasCashInflowSeries.value ? 'Income' : 'Gross Assets'
   const overlayData = hasCashInflowSeries.value
     ? cashInflow
     : data.value.months.map((_, i) =>
@@ -1015,7 +1015,7 @@ function signedEur(v: number) {
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">
-                    {{ drilldownType === 'liability' ? 'Liability' : drilldownType === 'cash-inflow' ? 'Cash Inflow' : 'Asset' }} Drilldown
+                    {{ drilldownType === 'liability' ? 'Liability' : drilldownType === 'cash-inflow' ? 'Income' : 'Asset' }} Drilldown
                   </h2>
                   <p class="mt-1 text-xs text-gray-400 dark:text-zinc-500">
                     Pick a category to see the individual {{ drilldownTypeLabel(drilldownType) }} behind it.
@@ -1110,7 +1110,7 @@ function signedEur(v: number) {
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
           <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
             <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
-              Net Worth vs. {{ hasCashInflowSeries ? 'Cash Inflow' : 'Gross Assets' }} (Mixed)
+              Net Worth vs. {{ hasCashInflowSeries ? 'Income' : 'Gross Assets' }} (Mixed)
             </h2>
             <div class="h-[280px]">
               <Bar :data="(mixedData as unknown as ChartData<'bar'>)" :options="(mixedOptions as ChartOptions<'bar'>)" />

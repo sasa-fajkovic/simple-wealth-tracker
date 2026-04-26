@@ -14,7 +14,7 @@ function toSlug(name: string): string {
 
 const TYPE_OPTIONS = [
   { value: 'asset', label: 'Asset' },
-  { value: 'cash-inflow', label: 'Cash Inflow' },
+  { value: 'cash-inflow', label: 'Income' },
   { value: 'liability', label: 'Liability' },
 ]
 

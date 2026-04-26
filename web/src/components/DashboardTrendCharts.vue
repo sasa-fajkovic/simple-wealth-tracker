@@ -101,12 +101,12 @@ const cards = computed(() => [
     data: trendChartData('Liabilities', labels.value, liabilityValues.value, wealthColors.liabilities.rose),
   },
   {
-    title: 'Cash Inflow Trend',
-    subtitle: 'Inflow over time',
+    title: 'Income Trend',
+    subtitle: 'Income over time',
     valueClass: 'text-teal-600 dark:text-teal-400',
     currentValue: latestValue(cashInflowValues.value),
     hasData: cashInflowValues.value.some(value => value !== 0),
-    data: trendChartData('Cash Inflow', cashInflowLabels.value, cashInflowValues.value, wealthColors.cashInflow.teal),
+    data: trendChartData('Income', cashInflowLabels.value, cashInflowValues.value, wealthColors.cashInflow.teal),
   },
 ])
 
@@ -121,7 +121,7 @@ const chartOptions = computed((): ChartOptions<'line'> => {
       tooltip: {
         ...buildTooltipDefaults(tokens),
         callbacks: {
-          label: (ctx: TooltipItem<'line'>) => ` ${ctx.dataset.label}: ${eurFmt.format((ctx.parsed as { y: number }).y)}`,
+          label: (ctx: TooltipItem<'line'>) => ` ${eurFmt.format((ctx.parsed as { y: number }).y)}`,
         },
       },
       datalabels: { display: false },

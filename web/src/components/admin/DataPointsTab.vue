@@ -2,10 +2,9 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import {
   getDataPointsPage, getAssets, getCategories, getPersons,
-  createDataPoint, updateDataPoint, deleteDataPoint, ApiError,
+  deleteDataPoint, ApiError,
 } from '../../api/client'
-import type { DataPoint, Asset, Category, Person, CreateDataPointPayload, UpdateDataPointPayload } from '../../types/index'
-import DataPointModal from './DataPointModal.vue'
+import type { DataPoint, Asset, Category, Person } from '../../types/index'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
@@ -21,8 +20,6 @@ const PAGE_SIZE = 25
 const eurFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 const TEN_MINUTES_MS = 10 * 60 * 1000
 
-type ModalState = { mode: 'create' } | { mode: 'edit'; item: DataPoint }
-
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const rows = ref<DataPoint[]>([])
@@ -35,9 +32,6 @@ const error = ref<string | null>(null)
 const dataRetryCount = ref(0)
 const page = ref(0)
 const totalCount = ref(0)
-const modal = ref<ModalState | null>(null)
-const saving = ref(false)
-const saveError = ref<string | null>(null)
 const { referenceDataVersion, dataPointsVersion, notifyDataPointsChanged } = useDataRefresh()
 
 const filterPersonId = ref<string | null>(null)
@@ -57,10 +51,6 @@ const filteredAssetOptions = computed(() => assets.value.filter(a => {
   if (filterCategoryId.value && a.category_id !== filterCategoryId.value) return false
   return true
 }))
-
-const editItem = computed(() =>
-  modal.value?.mode === 'edit' ? (modal.value as { mode: 'edit'; item: DataPoint }).item : undefined
-)
 
 const totalPages = computed(() => Math.ceil(totalCount.value / PAGE_SIZE))
 const startRow = computed(() => totalCount.value === 0 ? 0 : page.value * PAGE_SIZE + 1)
@@ -166,31 +156,7 @@ function clearFilters() {
   loadDataPoints()
 }
 
-// ── CRUD handlers ─────────────────────────────────────────────────────────────
-
-async function handleSave(payload: CreateDataPointPayload | UpdateDataPointPayload) {
-  saving.value = true
-  saveError.value = null
-  let success = false
-  try {
-    if (modal.value?.mode === 'create') {
-      await createDataPoint(payload as CreateDataPointPayload)
-      page.value = 0 // go to first page so the new entry is visible
-    } else if (modal.value?.mode === 'edit') {
-      await updateDataPoint((modal.value as { mode: 'edit'; item: DataPoint }).item.id, payload as UpdateDataPointPayload)
-    }
-    success = true
-  } catch (e) {
-    saveError.value = e instanceof ApiError ? e.message : 'Unexpected error'
-  } finally {
-    saving.value = false
-  }
-  if (success) {
-    modal.value = null
-    notifyDataPointsChanged()
-    loadDataPoints()
-  }
-}
+// ── Delete handler ─────────────────────────────────────────────────────────────
 
 async function handleDelete(id: string) {
   await deleteDataPoint(id)
@@ -208,16 +174,11 @@ function openConfirm(id: string) {
     accept: () => handleDelete(id),
   })
 }
-
-function openEdit(id: string) {
-  const orig = rows.value.find(r => r.id === id)
-  if (orig) modal.value = { mode: 'edit', item: orig }
-}
 </script>
 
 <template>
   <div>
-    <!-- Filters + Add button -->
+    <!-- Filters -->
     <div class="flex flex-wrap items-center gap-3 mb-4">
       <Select
         v-model="filterPersonId"
@@ -261,9 +222,6 @@ function openEdit(id: string) {
         severity="secondary"
         @click="clearFilters"
       />
-      <div class="ml-auto">
-        <Button label="Add Data Point" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
-      </div>
     </div>
 
     <!-- Error -->
@@ -284,7 +242,7 @@ function openEdit(id: string) {
     >
       <i class="pi pi-chart-line text-4xl mb-4 opacity-40" />
       <p class="text-base font-medium mb-1">No data points yet</p>
-      <p class="text-sm">Click <strong>+ Add Data Point</strong> to record your first value.</p>
+      <p class="text-sm">Use Monthly Update to record values, then review them here.</p>
     </div>
 
     <!-- Content -->
@@ -322,21 +280,12 @@ function openEdit(id: string) {
               </div>
             </div>
             <p v-if="row.notes" class="text-xs text-gray-500 dark:text-zinc-400 mt-1.5 truncate">{{ row.notes }}</p>
-            <div class="flex gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-zinc-700">
+            <div class="mt-2 flex justify-end border-t border-gray-100 pt-2 dark:border-zinc-700">
               <Button
-                label="Edit"
-                icon="pi pi-pencil"
-                text
-                class="flex-1 min-h-11 justify-center"
-                :aria-label="`Edit data point for ${row.assetName} in ${row.year_month}`"
-                @click="openEdit(row.id)"
-              />
-              <Button
-                label="Delete"
                 icon="pi pi-trash"
                 text
                 severity="danger"
-                class="flex-1 min-h-11 justify-center"
+                class="min-h-11 min-w-11"
                 :aria-label="`Delete data point for ${row.assetName} in ${row.year_month}`"
                 @click="openConfirm(row.id)"
               />
@@ -371,22 +320,13 @@ function openEdit(id: string) {
             <template #body="{ data: row }">{{ row.notes ?? '—' }}</template>
           </Column>
           <Column field="addedAt" header="Added" />
-          <Column header="Actions" style="width: 9rem">
+          <Column header="Actions" style="width: 5rem">
             <template #body="{ data: row }">
-              <div class="flex items-center gap-1">
-                <Button
-                  icon="pi pi-pencil"
-                  label="Edit"
-                  text
-                  class="min-h-11"
-                  :aria-label="`Edit data point for ${row.assetName} in ${row.year_month}`"
-                  @click="openEdit(row.id)"
-                />
+              <div class="flex items-center justify-end gap-1">
                 <Button
                   icon="pi pi-trash"
-                  label="Del"
                   text
-                  class="min-h-11"
+                  size="small"
                   severity="danger"
                   :aria-label="`Delete data point for ${row.assetName} in ${row.year_month}`"
                   @click="openConfirm(row.id)"
@@ -424,18 +364,5 @@ function openEdit(id: string) {
         </div>
       </div>
     </template>
-
-    <DataPointModal
-      v-if="modal"
-      :mode="modal.mode"
-      :item="editItem"
-      :assets="assets"
-      :categories="categories"
-      :persons="persons"
-      :saving="saving"
-      :save-error="saveError"
-      :on-save="handleSave"
-      :on-cancel="() => { modal = null; saveError = null; }"
-    />
   </div>
 </template>

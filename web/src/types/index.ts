@@ -78,20 +78,6 @@ export interface UpdateAssetPayload {
   person_id: string   // required
 }
 
-export interface CreateDataPointPayload {
-  asset_id: string
-  year_month: string  // YYYY-MM — provide as-is from <input type="month"> value
-  value: number       // must be > 0
-  notes?: string
-}
-
-export interface UpdateDataPointPayload {
-  asset_id: string
-  year_month: string
-  value: number
-  notes?: string
-}
-
 export interface CreatePersonPayload {
   name: string
 }

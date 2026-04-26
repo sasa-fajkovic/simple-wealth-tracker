@@ -21,7 +21,7 @@ import type { Context as DatalabelsContext } from 'chartjs-plugin-datalabels'
 import type { SummaryResponse } from '../types/index'
 import type { ChartType } from '../composables/useChartType'
 import { useTheme } from '../composables/useTheme'
-import { buildTooltipDefaults, getChartTokens, wealthColors } from '../theme/tokens'
+import { buildTooltipDefaults, getChartTokens } from '../theme/tokens'
 import { eurFmt, compactFmt } from '../utils/formatters'
 
 ChartJS.register(
@@ -99,11 +99,12 @@ const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
   const isArea = props.chartType === 'area'
 
   if (isTrend) {
-    const color = wealthColors.cashInflow.teal
+    const tokens = getChartTokens(theme.value === 'dark')
+    const color = tokens.totalLine
     return {
       labels: labels.value,
       datasets: [{
-        label: 'Total Cash Inflow',
+        label: 'Total Income',
         data: displayedTotals.value,
         borderColor: color,
         backgroundColor: color + '22',

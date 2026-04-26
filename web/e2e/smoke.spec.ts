@@ -14,6 +14,15 @@ async function createJson(request: import('@playwright/test').APIRequestContext,
   return response.json()
 }
 
+async function createAssetCategory(request: import('@playwright/test').APIRequestContext, prefix = 'Asset Category') {
+  return createJson(request, '/api/v1/categories', {
+    name: uniqueName(prefix),
+    projected_yearly_growth: 0.08,
+    color: '#6366f1',
+    type: 'asset',
+  })
+}
+
 function rowContaining(page: import('@playwright/test').Page, text: string) {
   return page.locator('tbody tr').filter({ hasText: text }).first()
 }
@@ -49,25 +58,26 @@ test.describe('Data Points page', () => {
     await expect(page.getByRole('heading', { name: 'History / Corrections' })).toBeVisible()
   })
 
-  test('creates a data point through the UI', async ({ page, request }) => {
+  test('renders existing data points without legacy add modal', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('DP Person') })
+    const category = await createAssetCategory(request, 'DP Category')
     const assetName = uniqueName('DP Asset')
     const asset = await createJson(request, '/api/v1/assets', {
       name: assetName,
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
+    })
+    await createJson(request, '/api/v1/data-points', {
+      asset_id: asset.id,
+      year_month: '2026-04',
+      value: 12345,
     })
 
     await page.goto('/data-points')
     await expect(page).toHaveTitle(/History \/ Corrections/)
     await expect(page.getByRole('heading', { name: 'History / Corrections' })).toBeVisible()
-    await page.getByRole('button', { name: 'Add Data Point' }).click()
-    await page.getByText('Select an asset').click()
-    await page.getByRole('option', { name: asset.name }).click()
-    await page.locator('input[type="month"]').fill('2026-04')
-    await page.getByRole('spinbutton').fill('12345')
-    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('button', { name: 'Add Data Point' })).toHaveCount(0)
 
     await expect(rowContaining(page, asset.name)).toBeVisible()
     await expect(rowContaining(page, '12.345,00')).toBeVisible()
@@ -89,8 +99,9 @@ test.describe('Admin page', () => {
     await expect(page.getByRole('button', { name: 'Add Asset' })).toBeVisible()
   })
 
-  test('creates a person and asset through the UI', async ({ page }) => {
+  test('creates a person and asset through the UI', async ({ page, request }) => {
     const personName = uniqueName('Admin Person')
+    await createAssetCategory(request, 'Admin Category')
     const assetName = uniqueName('Admin Asset')
 
     await page.goto('/admin')
@@ -114,7 +125,7 @@ test.describe('Admin page', () => {
     await expect(page.getByRole('button', { name: 'Add Liability' })).toBeVisible()
   })
 
-  test('guides and validates liability data point entry', async ({ page, request }) => {
+  test('validates liability data points and renders negative values', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('Debt Person') })
     const category = await createJson(request, '/api/v1/categories', {
       name: uniqueName('Debt Category'),
@@ -135,14 +146,13 @@ test.describe('Admin page', () => {
     expect(rejected.status()).toBe(400)
     await expect((await rejected.json()).error).toContain('Liability values must be zero or negative')
 
+    await createJson(request, '/api/v1/data-points', {
+      asset_id: asset.id,
+      year_month: '2026-04',
+      value: -1000,
+    })
+
     await page.goto('/data-points')
-    await page.getByRole('button', { name: 'Add Data Point' }).click()
-    await page.getByText('Select an asset').click()
-    await page.getByRole('option', { name: asset.name }).click()
-    await expect(page.getByText(/Liability — enter a negative value/)).toBeVisible()
-    await page.locator('input[type="month"]').fill('2026-04')
-    await page.getByRole('spinbutton').fill('-1000')
-    await page.getByRole('button', { name: 'Save' }).click()
     await expect(rowContaining(page, asset.name)).toBeVisible()
     await expect(rowContaining(page, '-1.000,00')).toBeVisible()
   })
@@ -178,10 +188,11 @@ test.describe('Monthly Update page', () => {
 
   test('shows asset rows and allows entering values', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('MU Person') })
+    const category = await createAssetCategory(request, 'MU Category')
     const assetName = uniqueName('MU Asset')
     await createJson(request, '/api/v1/assets', {
       name: assetName,
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
     })
@@ -194,21 +205,51 @@ test.describe('Monthly Update page', () => {
     await expect(input).toHaveValue('75000')
   })
 
+  test('keeps rows visible instead of flashing a skeleton while changing months', async ({ page, request }) => {
+    const person = await createJson(request, '/api/v1/persons', { name: uniqueName('Stable Month Person') })
+    const category = await createAssetCategory(request, 'Stable Month Category')
+    const assetName = uniqueName('Stable Month Asset')
+    await createJson(request, '/api/v1/assets', {
+      name: assetName,
+      category_id: category.id,
+      projected_yearly_growth: null,
+      person_id: person.id,
+    })
+
+    await page.goto('/monthly-update')
+    await expect(page.getByRole('cell', { name: assetName, exact: false })).toBeVisible()
+
+    let delayed = false
+    await page.route('**/api/v1/data-points?year_month=*', async (route) => {
+      if (!delayed) {
+        delayed = true
+        await new Promise(resolve => setTimeout(resolve, 300))
+      }
+      await route.continue()
+    })
+
+    await page.getByRole('button', { name: 'Next month' }).click()
+    await expect(page.getByText(/Updating month/)).toBeVisible()
+    await expect(page.locator('.p-skeleton')).toHaveCount(0)
+    await expect(page.getByRole('cell', { name: assetName, exact: false })).toBeVisible()
+  })
+
   test('orders asset rows alphabetically', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('Sort Person') })
+    const category = await createAssetCategory(request, 'Sort Category')
     const suffix = uniqueName('Sort').replace(/\s+/g, '-')
     const laterName = `ZZZ ${suffix}`
     const earlierName = `AAA ${suffix}`
 
     await createJson(request, '/api/v1/assets', {
       name: laterName,
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
     })
     await createJson(request, '/api/v1/assets', {
       name: earlierName,
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
     })
@@ -226,10 +267,11 @@ test.describe('Monthly Update page', () => {
 
   test('saves data via Save All and shows summary', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('Save Person') })
+    const category = await createAssetCategory(request, 'Save Category')
     const assetName = uniqueName('Save Asset')
     const asset = await createJson(request, '/api/v1/assets', {
       name: assetName,
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
     })
@@ -256,10 +298,11 @@ test.describe('Monthly Update page', () => {
 
   test('copy forward fills empty inputs from previous month', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('CF Person') })
+    const category = await createAssetCategory(request, 'CF Category')
     const assetName = uniqueName('CF Asset')
     const asset = await createJson(request, '/api/v1/assets', {
       name: assetName,
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
     })
@@ -342,11 +385,11 @@ test.describe('Projections page', () => {
     await expect(page.getByLabel('Custom horizon in years')).toBeVisible()
   })
 
-  test('sensitivity toggle for liabilities is present without cash-inflow warning', async ({ page }) => {
+  test('sensitivity toggle for liabilities is present without income warning', async ({ page }) => {
     await page.goto('/projections')
     await expect(page.getByRole('button', { name: /Toggle: exclude liabilities/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Show information about cash-inflow/i })).toHaveCount(0)
-    await expect(page.getByText(/Cash inflow excluded from projections/)).toHaveCount(0)
+    await expect(page.getByRole('button', { name: /Show information about income/i })).toHaveCount(0)
+    await expect(page.getByText(/Income excluded from projections/)).toHaveCount(0)
   })
 
   test('liability category rows are locked when liabilities are globally hidden', async ({ page, request }) => {
@@ -463,13 +506,13 @@ test.describe('Projections page', () => {
   })
 })
 
-test.describe('Cash Inflow page', () => {
-  test('renders cash inflow page', async ({ page }) => {
-    await page.goto('/cash-inflow')
-    await expect(page).toHaveTitle(/Cash Inflow|WealthTrack/)
+test.describe('Income page', () => {
+  test('renders income page', async ({ page }) => {
+    await page.goto('/income')
+    await expect(page).toHaveTitle(/Income|WealthTrack/)
   })
 
-  test('defaults to total cash inflow trend', async ({ page, request }) => {
+  test('defaults to total income trend', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('Trend Income Person') })
     const category = await createJson(request, '/api/v1/categories', {
       name: uniqueName('Trend Income'),
@@ -485,14 +528,14 @@ test.describe('Cash Inflow page', () => {
     })
     await createJson(request, '/api/v1/data-points', { asset_id: source.id, year_month: '2026-03', value: 5000 })
 
-    await page.goto('/cash-inflow')
+    await page.goto('/income')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText('Total Cash Inflow Trend')).toBeVisible()
-    await expect(page.getByText('Total inflow over time.')).toBeVisible()
+    await expect(page.getByText('Total Income Trend')).toBeVisible()
+    await expect(page.getByText('Total income over time.')).toBeVisible()
   })
 
-  test('shows summary cards when cash inflow data exists', async ({ page, request }) => {
+  test('shows summary cards when income data exists', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('CI Person') })
     const category = await createJson(request, '/api/v1/categories', {
       name: uniqueName('Salary'),
@@ -512,13 +555,13 @@ test.describe('Cash Inflow page', () => {
       value: 5000,
     })
 
-    await page.goto('/cash-inflow')
-    await expect(page.getByText('Total Inflow', { exact: true })).toBeVisible()
+    await page.goto('/income')
+    await expect(page.getByText('Total Income', { exact: true })).toBeVisible()
     await expect(page.getByText('Avg / Month')).toBeVisible()
     await expect(page.getByText('Active Months')).toHaveCount(0)
   })
 
-  test('groups all cash inflow by person and filtered inflow by source', async ({ page, request }) => {
+  test('groups all income by person and filtered income by source', async ({ page, request }) => {
     const personA = await createJson(request, '/api/v1/persons', { name: uniqueName('Income Alice') })
     const personB = await createJson(request, '/api/v1/persons', { name: uniqueName('Income Bob') })
     const category = await createJson(request, '/api/v1/categories', {
@@ -542,14 +585,14 @@ test.describe('Cash Inflow page', () => {
     await createJson(request, '/api/v1/data-points', { asset_id: salaryA.id, year_month: '2026-03', value: 5200 })
     await createJson(request, '/api/v1/data-points', { asset_id: salaryB.id, year_month: '2026-03', value: 4100 })
 
-    await page.goto('/cash-inflow')
+    await page.goto('/income')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText('Inflow by Person', { exact: true })).toBeVisible()
+    await expect(page.getByText('Income by Person', { exact: true })).toBeVisible()
     await expect(page.getByText(personA.name).last()).toBeVisible()
     await expect(page.getByText(personB.name).last()).toBeVisible()
 
     await page.getByRole('button', { name: `Show only ${personA.name}` }).click()
-    await expect(page.getByText('Top Inflow Sources')).toBeVisible()
+    await expect(page.getByText('Top Income Sources')).toBeVisible()
     await expect(page.getByText(salaryA.name)).toBeVisible()
   })
 
@@ -569,11 +612,11 @@ test.describe('Cash Inflow page', () => {
     })
     await createJson(request, '/api/v1/data-points', { asset_id: source.id, year_month: '2026-03', value: 5000 })
 
-    await page.goto('/cash-inflow')
+    await page.goto('/income')
     await page.waitForLoadState('networkidle')
     await page.getByTitle('Pie').click()
 
-    await expect(page.getByText('Cash Inflow by Person')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Income by Person' })).toBeVisible()
     await expect(page.getByText('Net Worth Trend')).toHaveCount(0)
   })
 })
@@ -589,9 +632,10 @@ test.describe('Analytics page', () => {
 
   test('shows metric cards when wealth data exists', async ({ page, request }) => {
     const person = await createJson(request, '/api/v1/persons', { name: uniqueName('AN Person') })
+    const category = await createAssetCategory(request, 'AN Category')
     const asset = await createJson(request, '/api/v1/assets', {
       name: uniqueName('AN Asset'),
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
     })
@@ -715,7 +759,7 @@ test.describe('Accessibility — keyboard and ARIA', () => {
     const logo = page.getByRole('link', { name: 'WealthTrack' })
     await logo.focus()
     // Tab through nav links - all major links should be reachable
-    const navLinks = ['Dashboard', 'Analytics', 'Projections', 'Cash Inflow', 'Monthly Update', 'Admin']
+    const navLinks = ['Dashboard', 'Analytics', 'Income', 'Projections', 'Monthly Update', 'Admin']
     for (const linkName of navLinks) {
       const link = page.getByRole('link', { name: linkName })
       await expect(link).toBeVisible()
@@ -736,10 +780,11 @@ test.describe('Accessibility — keyboard and ARIA', () => {
   test('Admin Assets tab: Edit/Delete buttons have item-specific aria-labels', async ({ page, request }) => {
     const personName = uniqueName('A11y Asset Person')
     const person = await createJson(request, '/api/v1/persons', { name: personName })
+    const category = await createAssetCategory(request, 'A11y Asset Category')
     const assetName = uniqueName('A11y Asset')
     await createJson(request, '/api/v1/assets', {
       name: assetName,
-      category_id: 'stocks',
+      category_id: category.id,
       projected_yearly_growth: null,
       person_id: person.id,
     })
@@ -751,7 +796,7 @@ test.describe('Accessibility — keyboard and ARIA', () => {
   })
 
   test('chart type selector buttons have accessible names', async ({ page }) => {
-    await page.goto('/cash-inflow')
+    await page.goto('/income')
     await page.waitForLoadState('networkidle')
     // ChartTypeSelector buttons should show short visible names next to icons.
     const chartTypeSelector = page.locator('.wt-chart-type-select')

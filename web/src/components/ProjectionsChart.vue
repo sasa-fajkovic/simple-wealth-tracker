@@ -231,12 +231,12 @@ function buildNullPaddedDatasets(
     const totalProjData = [...Array(histLen - 1).fill(null), totalBridge, ...adjustedProjTotals.value]
 
     const totalBase = {
+      type: 'line' as const,
       backgroundColor: 'transparent',
       fill: false,
       tension: 0.1,
       pointRadius: 0,
       borderWidth: 2,
-      stack: undefined,
       _projChart: true,
       _hideFromLegend: true,
     }
@@ -245,6 +245,7 @@ function buildNullPaddedDatasets(
       label: 'Total',
       data: totalHistData,
       borderColor: totalColor,
+      stack: 'total-historical',
       _hideFromLegend: false,
       _phase: 'historical',
     })
@@ -254,6 +255,7 @@ function buildNullPaddedDatasets(
       data: totalProjData,
       borderColor: totalColor + 'aa',
       borderDash: [5, 5],
+      stack: 'total-projected',
       _hideFromLegend: true,
       _phase: 'projected',
     })

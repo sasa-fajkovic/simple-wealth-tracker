@@ -18,12 +18,15 @@ type DeleteState =
 
 const TYPE_LABELS: Record<string, string> = {
   asset: 'Asset',
-  'cash-inflow': 'Cash Inflow',
+  'cash-inflow': 'Income',
   liability: 'Liability',
 }
 
 const props = defineProps<{
   categoryType: 'asset' | 'cash-inflow' | 'liability'
+}>()
+const emit = defineEmits<{
+  'update:count': [count: number]
 }>()
 
 const rows = ref<Asset[]>([])
@@ -83,6 +86,8 @@ const displayRows = computed(() =>
     }))
 )
 
+watch(displayRows, value => emit('update:count', value.length), { immediate: true })
+
 const tabLabel = computed(() => TYPE_LABELS[props.categoryType] ?? 'Items')
 
 async function handleSave(payload: CreateAssetPayload | UpdateAssetPayload) {
@@ -111,6 +116,12 @@ const editItem = computed(() =>
 function handleDeleteClick(row: typeof displayRows.value[number]) {
   deleteState.value = { phase: 'confirm', id: row.id, name: row.name }
 }
+
+function openCreate() {
+  modal.value = { mode: 'create' }
+}
+
+defineExpose({ openCreate })
 
 async function handleConfirm() {
   if (!deleteState.value) return
@@ -150,16 +161,6 @@ async function handleForceConfirm() {
 
 <template>
   <div>
-    <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
-      <div>
-        <h2 class="text-sm font-semibold text-gray-900 dark:text-zinc-100">{{ tabLabel }}</h2>
-        <p class="mt-1 text-xs text-gray-500 dark:text-zinc-400">
-          {{ displayRows.length }} tracked {{ tabLabel.toLowerCase() }} item{{ displayRows.length === 1 ? '' : 's' }}
-        </p>
-      </div>
-      <Button :label="`Add ${tabLabel}`" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
-    </div>
-
     <div v-if="error" class="mb-4">
       <Message severity="error" class="w-full">Could not load data: {{ error }}</Message>
       <div class="mt-2">

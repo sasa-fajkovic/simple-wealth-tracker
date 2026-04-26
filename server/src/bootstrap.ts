@@ -51,7 +51,7 @@ export async function bootstrapDatabase(): Promise<void> {
   // If YAML still has dataPoints, YAML is authoritative — overwrite CSV from YAML, then strip.
   // Recovery: if a previous boot crashed between writing CSV and stripping YAML, YAML still has
   // dataPoints, so we overwrite CSV again (safe: YAML is always the authoritative source here).
-  const current = parse(raw) as Database
+  let current = parse(raw) as Database
   if (current.dataPoints !== undefined) {
     const { dataPoints, ...withoutDataPoints } = current
     if (dataPoints.length > 0) {
@@ -65,6 +65,7 @@ export async function bootstrapDatabase(): Promise<void> {
     }
     // Strip dataPoints from YAML regardless (even if empty array) to finalize migration
     await writeFileAtomic(DB_PATH, stringify(withoutDataPoints, { lineWidth: 0 }))
+    current = withoutDataPoints
   }
 
   // Category type migration (M-02): backfill `type` field for old records that only have

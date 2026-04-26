@@ -131,7 +131,7 @@ type AssetBreakdownRow = ProjectionsResponse['historical']['asset_breakdown'][nu
 const expandedCategoryId = ref<string | null>(null)
 
 function categoryTypeLabel(type: CategoryBreakdownRow['category_type']): string {
-  return type === 'cash-inflow' ? 'inflow' : type
+  return type === 'cash-inflow' ? 'income' : type
 }
 
 function categoryBadgeClass(type: CategoryBreakdownRow['category_type']): string {

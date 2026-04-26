@@ -153,7 +153,7 @@ function formatSignedEur(v: number) {
                 <span class="font-bold tabular-nums text-gray-900 dark:text-zinc-100">{{ inventoryLoading ? '—' : inventoryCounts.liability }}</span>
               </div>
               <div class="flex items-center justify-between gap-2">
-                <span class="text-teal-700 dark:text-teal-300">Cash inflow</span>
+                <span class="text-teal-700 dark:text-teal-300">Income</span>
                 <span class="font-bold tabular-nums text-gray-900 dark:text-zinc-100">{{ inventoryLoading ? '—' : inventoryCounts['cash-inflow'] }}</span>
               </div>
             </div>

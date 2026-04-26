@@ -85,6 +85,7 @@ const assets = ref<Asset[]>([])
 const categories = ref<Category[]>([])
 const persons = ref<Person[]>([])
 const rows = ref<MonthlyRow[]>([])
+const rowsMonth = ref(selectedMonth.value)
 
 const filterPersonId = ref<string | null>(null)
 const filterCategoryId = ref<string | null>(null)
@@ -130,23 +131,31 @@ const itemsToSaveCount = computed(() =>
   rows.value.filter(r => r.inputValue !== null).length
 )
 
-const prevMonth = computed(() => shiftMonth(selectedMonth.value, -1))
+const displayedMonth = computed(() => rowsMonth.value)
+const displayedPrevMonth = computed(() => shiftMonth(displayedMonth.value, -1))
+let monthLoadSeq = 0
 
 // ── Data loading ───────────────────────────────────────────────────────────────
 
 async function loadMonthData(): Promise<void> {
+  const loadSeq = ++monthLoadSeq
+  const month = selectedMonth.value
+  const previousMonth = shiftMonth(month, -1)
   loading.value = true
   error.value = null
   try {
     const [currDps, prevDps] = await Promise.all([
-      getDataPointsForMonth(selectedMonth.value),
-      getDataPointsForMonth(prevMonth.value),
+      getDataPointsForMonth(month),
+      getDataPointsForMonth(previousMonth),
     ])
+    if (loadSeq !== monthLoadSeq || selectedMonth.value !== month) return
     buildRows(currDps, prevDps)
+    rowsMonth.value = month
   } catch (e) {
+    if (loadSeq !== monthLoadSeq) return
     error.value = e instanceof ApiError ? e.message : 'Unexpected error loading month data'
   } finally {
-    loading.value = false
+    if (loadSeq === monthLoadSeq) loading.value = false
   }
 }
 
@@ -505,6 +514,15 @@ async function saveAll(): Promise<void> {
       <Message severity="error" class="w-full">{{ saveError }}</Message>
     </div>
 
+    <div
+      v-if="loading && !initLoading"
+      class="mb-3 text-xs font-medium text-gray-500 dark:text-zinc-400"
+      role="status"
+      aria-live="polite"
+    >
+      Updating month…
+    </div>
+
     <!-- ── Load error ──────────────────────────────────────────────────────── -->
     <div v-if="error && !initLoading" class="mb-4">
       <Message severity="error" class="w-full">Could not load data: {{ error }}</Message>
@@ -514,7 +532,7 @@ async function saveAll(): Promise<void> {
     </div>
 
     <!-- ── Loading skeleton ────────────────────────────────────────────────── -->
-    <Skeleton v-if="initLoading || loading" height="20rem" border-radius="8px" />
+    <Skeleton v-if="initLoading" height="20rem" border-radius="8px" />
 
     <!-- ── Empty state (no assets) ────────────────────────────────────────── -->
     <div
@@ -527,7 +545,7 @@ async function saveAll(): Promise<void> {
     </div>
 
     <!-- ── Content ─────────────────────────────────────────────────────────── -->
-    <template v-else-if="!initLoading && !loading && !error">
+    <template v-else-if="!initLoading && !error">
       <!-- Filtered empty state -->
       <div
         v-if="filteredRows.length === 0"
@@ -558,19 +576,20 @@ async function saveAll(): Promise<void> {
               >Liability</span>
             </div>
             <div class="text-right shrink-0 text-xs text-gray-500 dark:text-zinc-400">
-              <p>{{ prevMonth }}</p>
+              <p>{{ displayedPrevMonth }}</p>
               <p class="font-medium text-gray-700 dark:text-zinc-300">{{ formatValue(row.prevValue) }}</p>
             </div>
           </div>
           <div>
-            <label class="block text-xs text-gray-500 dark:text-zinc-400 mb-1">{{ selectedMonth }}</label>
+            <label class="block text-xs text-gray-500 dark:text-zinc-400 mb-1">{{ displayedMonth }}</label>
             <input
               type="number"
               :value="row.inputValue ?? ''"
               :placeholder="row.categoryType === 'liability' ? 'e.g. -50000' : 'e.g. 10000'"
               step="1"
-              :aria-label="`Value for ${row.assetName} in ${selectedMonth}`"
+              :aria-label="`Value for ${row.assetName} in ${displayedMonth}`"
               class="wt-number-input wt-month-value-input w-full"
+              :disabled="loading || saving"
               :class="[
                 row.rowError ? 'wt-month-value-input-error' : '',
                 row.categoryType === 'liability' ? 'text-red-600 dark:text-red-300' : 'text-gray-900 dark:text-zinc-100',
@@ -597,8 +616,8 @@ async function saveAll(): Promise<void> {
               <th class="text-left py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Asset</th>
               <th class="text-left py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Category</th>
               <th class="text-left py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Person</th>
-              <th class="text-right py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">{{ prevMonth }}</th>
-              <th class="text-right py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">{{ selectedMonth }}</th>
+              <th class="text-right py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">{{ displayedPrevMonth }}</th>
+              <th class="text-right py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">{{ displayedMonth }}</th>
               <th class="text-left py-2 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Status</th>
             </tr>
           </thead>
@@ -623,8 +642,9 @@ async function saveAll(): Promise<void> {
                     :value="row.inputValue ?? ''"
                     :placeholder="row.categoryType === 'liability' ? 'e.g. -50000' : 'e.g. 10000'"
                     step="1"
-                    :aria-label="`Value for ${row.assetName} in ${selectedMonth}`"
+                    :aria-label="`Value for ${row.assetName} in ${displayedMonth}`"
                     class="wt-number-input wt-month-value-input w-36"
+                    :disabled="loading || saving"
                     :class="[
                       row.rowError ? 'wt-month-value-input-error' : '',
                       row.categoryType === 'liability' ? 'text-red-600 dark:text-red-300' : 'text-gray-900 dark:text-zinc-100',

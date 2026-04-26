@@ -11,16 +11,16 @@ A self-hosted family net worth tracker with dead-simple data entry and beautiful
 |---|---|
 | ![WealthTrack overview in light theme](docs/demo/overview-light.gif) | ![WealthTrack projections in dark theme](docs/demo/projections-dark.gif) |
 
-| Cash inflow (light) | Monthly update and admin (dark) |
+| Income (light) | Monthly update and admin (dark) |
 |---|---|
-| ![Cash inflow dashboard in light theme](docs/demo/cash-inflow-light.gif) | ![Monthly update and admin screens in dark theme](docs/demo/monthly-admin-dark.gif) |
+| ![Income dashboard in light theme](docs/demo/cash-inflow-light.gif) | ![Monthly update and admin screens in dark theme](docs/demo/monthly-admin-dark.gif) |
 
 ## Features
 
 - 📊 Track net worth across categories (stocks, real estate, crypto, cash, liabilities, …)
 - 📈 Interactive charts — area, line, bar, and pie
 - 🔮 Projections page with configurable growth rates and milestones
-- 💸 Cash inflow tracking
+- 💸 Income tracking
 - 🌙 Dark / light theme
 - 🗃️ Data stored in plain YAML + CSV files — easy to back up and edit
 - 🐳 Single Docker image, single port
