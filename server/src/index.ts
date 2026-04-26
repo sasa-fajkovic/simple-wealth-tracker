@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 import { bootstrapDatabase } from './bootstrap.js'
+import { pruneAuditLogs } from './audit/index.js'
 import categoriesRouter from './routes/categories.js'
 import assetsRouter from './routes/assets.js'
 import dataPointsRouter from './routes/dataPoints.js'
@@ -58,6 +59,8 @@ app.get('*', async (c) => {
 
 // Bootstrap runs before accepting requests (STOR-01: create database.yaml with seed data if missing)
 await bootstrapDatabase()
+// Best-effort log retention; never blocks startup if it fails.
+await pruneAuditLogs()
 
 const PORT = Number(process.env.PORT ?? 8080)
 
