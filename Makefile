@@ -15,7 +15,7 @@ dev:
 	DATA_FILE=$(DATA)/database.yaml \
 	DATA_POINTS_FILE=$(DATA)/datapoints.csv \
 	LOGS_DIR=$(DATA)/logs \
-	npm --prefix server run dev & \
+	PORT=3000 npm --prefix server run dev & \
 	npm --prefix web run dev
 
 ## build: compile server TypeScript + Vite-build web

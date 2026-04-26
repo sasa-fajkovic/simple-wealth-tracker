@@ -6,6 +6,9 @@
 web/node_modules/
 web/dist/
 web/.vite/
+web/.playwright-data/
+web/playwright-report/
+web/test-results/
 server/node_modules/
 server/dist/
 npm-debug.log*

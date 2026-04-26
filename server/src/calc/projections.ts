@@ -88,12 +88,19 @@ export interface ProjectionBlock {
  *   2. Among data points with that year_month, pick the one with the greatest updated_at
  *      (ISO 8601 strings compare correctly — same upsert rule as locfFill).
  *   3. If the asset has no data points, seed = 0.
+ *
+ * @param rateMultiplier  Scenario multiplier applied to every resolved growth rate.
+ *   1.0 = base (default, preserves current behaviour).
+ *   0.5 = conservative (half the stored rates).
+ *   1.5 = aggressive (1.5× the stored rates).
+ *   Any non-negative value is accepted; callers are responsible for sensible bounds.
  */
 export function buildProjection(
   assets: Asset[],
   categories: Category[],
   dataPoints: DataPoint[],
-  years: number
+  years: number,
+  rateMultiplier = 1.0,
 ): ProjectionBlock {
   // 1. Determine projection anchor: greatest year_month across ALL data points
   const latestMonth = dataPoints.length === 0
@@ -135,7 +142,7 @@ export function buildProjection(
         seed = bestDP.value
       }
 
-      const annualRate = resolveGrowthRate(asset, categories)
+      const annualRate = resolveGrowthRate(asset, categories) * rateMultiplier
       const monthlyRate = compoundMonthlyRate(annualRate)
       let v = seed
       for (let i = 0; i < months.length; i++) {

@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { getSummary, getPersons, ApiError } from '../api/client'
-import type { SummaryResponse, RangeKey, Person } from '../types/index'
-import ChartTypeSelector from '../components/ChartTypeSelector.vue'
-import WealthChart from '../components/WealthChart.vue'
-import SummaryCards from '../components/SummaryCards.vue'
+import { getSummary, getPersons, getAssets, getCategories, ApiError } from '../api/client'
+import type { SummaryResponse, RangeKey, Person, Asset, Category } from '../types/index'
+import DashboardTrendCharts from '../components/DashboardTrendCharts.vue'
+import PageShell from '../components/ui/PageShell.vue'
 import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
-import { useChartType } from '../composables/useChartType'
 
 const RANGES: { label: string; value: RangeKey }[] = [
   { label: 'YTD', value: 'ytd' }, { label: '6M',  value: '6m'  },
@@ -18,35 +16,42 @@ const RANGES: { label: string; value: RangeKey }[] = [
   { label: '10Y', value: '10y' }, { label: 'Max', value: 'max' },
 ]
 
-const range = ref<RangeKey>('10y')
+const range = ref<RangeKey>('ytd')
 const persons = ref<Person[]>([])
+const assets = ref<Asset[]>([])
+const categories = ref<Category[]>([])
 const person = ref<string | null>(null)
 const data = ref<SummaryResponse | null>(null)
+const cashInflowData = ref<SummaryResponse | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const retryCount = ref(0)
-const { chartType, setChartType } = useChartType('dashboard-chart-type')
-const hiddenCategories = ref<Set<string>>(new Set())
-
-function toggleCategory(id: string) {
-  const next = new Set(hiddenCategories.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
-  hiddenCategories.value = next
-}
+const inventoryLoading = ref(true)
 
 onMounted(() => {
   document.title = 'Dashboard — WealthTrack'
   getPersons()
     .then(list => { persons.value = list })
     .catch(() => {})
+  Promise.all([getAssets(), getCategories()])
+    .then(([assetList, categoryList]) => {
+      assets.value = assetList
+      categories.value = categoryList
+    })
+    .catch(() => {})
+    .finally(() => { inventoryLoading.value = false })
 })
 
 async function loadSummary() {
   loading.value = true
   error.value = null
   try {
-    data.value = await getSummary(range.value, person.value ?? undefined)
+    const [result, inflowResult] = await Promise.all([
+      getSummary(range.value, person.value ?? undefined),
+      getSummary(range.value, person.value ?? undefined, true),
+    ])
+    data.value = result
+    cashInflowData.value = inflowResult
   } catch (err) {
     error.value = err instanceof ApiError ? err.message : 'Unexpected error'
   } finally {
@@ -64,33 +69,56 @@ const personValue = computed({
   get: () => person.value ?? 'all',
   set: (v: string) => { person.value = v === 'all' ? null : v },
 })
+
+// Metric cards computed from response
+const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
+const hasLiabilities = computed(() => data.value && data.value.total_liabilities < 0)
+const inventoryCounts = computed(() => {
+  const categoryTypes = new Map(categories.value.map(category => [category.id, category.type]))
+  return assets.value.reduce(
+    (acc, asset) => {
+      const type = categoryTypes.get(asset.category_id) ?? 'asset'
+      acc[type] += 1
+      return acc
+    },
+    { asset: 0, liability: 0, 'cash-inflow': 0 } as Record<Category['type'], number>,
+  )
+})
+
+function deltaClass(v: number) {
+  return v >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+}
+function formatSignedEur(v: number) {
+  const sign = v >= 0 ? '+' : '\u2212'
+  return `${sign}${eurFmt.format(Math.abs(v))}`
+}
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 dark:bg-zinc-950">
-    <div class="px-4 sm:px-6 py-6">
+  <PageShell>
       <!-- Controls row -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-        <div class="overflow-x-auto pb-0.5 -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div class="wt-control-strip -mx-4 px-4 sm:mx-0 sm:px-0">
           <SelectButton
             v-model="range"
             :options="RANGES"
             option-label="label"
             option-value="value"
-            class="whitespace-nowrap"
+            aria-label="Chart time range"
+            class="whitespace-nowrap wt-touch-select wt-soft-select wt-range-select"
           />
         </div>
-        <ChartTypeSelector :value="chartType" @change="setChartType" />
       </div>
 
       <!-- Person filter -->
-      <div v-if="persons.length > 0" class="overflow-x-auto pb-0.5 -mx-4 px-4 sm:mx-0 sm:px-0 mb-3">
+      <div v-if="persons.length > 0" class="wt-control-strip -mx-4 px-4 sm:mx-0 sm:px-0 mb-3">
         <SelectButton
           v-model="personValue"
           :options="personOptions"
           option-label="label"
           option-value="value"
-          class="whitespace-nowrap"
+          aria-label="Filter by person"
+          class="whitespace-nowrap wt-touch-select wt-soft-select wt-person-select"
         />
       </div>
 
@@ -101,30 +129,60 @@ const personValue = computed({
         </div>
       </div>
 
-      <!-- Loading skeleton -->
-      <template v-if="loading">
-        <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4">
-          <div class="flex flex-col gap-4">
-            <Skeleton height="14rem" border-radius="8px" />
-            <Skeleton height="8rem" border-radius="8px" />
+      <!-- Metric cards row -->
+      <template v-if="data && cashInflowData && !loading">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
+            <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Tracked Items</p>
+            <div class="space-y-1 text-sm">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-emerald-700 dark:text-emerald-300">Assets</span>
+                <span class="font-bold tabular-nums text-gray-900 dark:text-zinc-100">{{ inventoryLoading ? '—' : inventoryCounts.asset }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-red-600 dark:text-red-300">Liabilities</span>
+                <span class="font-bold tabular-nums text-gray-900 dark:text-zinc-100">{{ inventoryLoading ? '—' : inventoryCounts.liability }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-teal-700 dark:text-teal-300">Cash inflow</span>
+                <span class="font-bold tabular-nums text-gray-900 dark:text-zinc-100">{{ inventoryLoading ? '—' : inventoryCounts['cash-inflow'] }}</span>
+              </div>
+            </div>
           </div>
-          <Skeleton height="460px" border-radius="8px" />
+          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
+            <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Gross Assets</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-zinc-100 tabular-nums">{{ eurFmt.format(data.gross_assets) }}</p>
+          </div>
+          <div v-if="hasLiabilities" class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
+            <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Liabilities</p>
+            <p class="text-lg font-bold text-red-600 dark:text-red-400 tabular-nums">{{ eurFmt.format(data.total_liabilities) }}</p>
+          </div>
+          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
+            <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Net Worth</p>
+            <p class="text-lg font-bold text-gray-900 dark:text-zinc-100 tabular-nums">{{ eurFmt.format(data.current_total) }}</p>
+          </div>
+          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
+            <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Period Change</p>
+            <p :class="['text-lg font-bold tabular-nums', deltaClass(data.period_delta_abs)]">
+              {{ formatSignedEur(data.period_delta_abs) }}
+            </p>
+          </div>
         </div>
       </template>
 
-      <!-- Main content: sidebar + chart side-by-side -->
-      <template v-else-if="data">
-        <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 items-start">
-          <SummaryCards
-            :data="data"
-            :hidden-categories="hiddenCategories"
-            :on-toggle-category="toggleCategory"
-          />
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4">
-            <WealthChart :data="data" :chart-type="chartType" :hidden-categories="hiddenCategories" />
-          </div>
+      <!-- Loading skeleton -->
+      <template v-if="loading">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
+          <Skeleton v-for="i in 5" :key="i" height="72px" border-radius="8px" />
+        </div>
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          <Skeleton v-for="i in 3" :key="i" height="380px" border-radius="8px" />
         </div>
       </template>
-    </div>
-  </div>
+
+      <!-- Dashboard trends -->
+      <template v-else-if="data && cashInflowData">
+        <DashboardTrendCharts :data="data" :cash-inflow-data="cashInflowData" />
+      </template>
+  </PageShell>
 </template>

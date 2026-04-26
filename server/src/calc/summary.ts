@@ -1,5 +1,6 @@
 // server/src/calc/summary.ts
 import type { DataPoint, Asset, Category } from '../models/index.js'
+import { categoryType } from '../models/index.js'
 
 /**
  * Last Observation Carried Forward (LOCF) gap-fill.
@@ -77,12 +78,51 @@ export function locfFill(
 
 export interface SummaryResponse {
   months: string[]
-  series: { category_id: string; category_name: string; color: string; values: number[] }[]
+  series: {
+    category_id: string
+    category_name: string
+    color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
+    values: number[]
+  }[]
   totals: number[]
   current_total: number
+  gross_assets: number
+  total_liabilities: number
+  monthly_delta_abs: number
   period_delta_abs: number
   period_delta_pct: number
-  category_breakdown: { category_id: string; category_name: string; color: string; value: number; pct_of_total: number }[]
+  category_breakdown: {
+    category_id: string
+    category_name: string
+    color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
+    value: number
+    pct_of_total: number
+  }[]
+  asset_series: {
+    asset_id: string
+    asset_name: string
+    category_id: string
+    category_name: string
+    color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
+    person_id: string
+    values: number[]
+  }[]
+  asset_breakdown: {
+    asset_id: string
+    asset_name: string
+    category_id: string
+    category_name: string
+    color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
+    person_id: string
+    value: number
+    pct_of_total: number
+    monthly_delta_abs: number
+    period_delta_abs: number
+  }[]
 }
 
 /**
@@ -100,6 +140,8 @@ export function aggregateSummary(
   locfData: Map<string, Map<string, number>>,
   months: string[]
 ): SummaryResponse {
+  const categoryById = new Map(categories.map(cat => [cat.id, cat]))
+
   // Build series: one entry per category, values[] = per-month sum of assets in that category
   const series = categories.map(cat => {
     const catAssets = assets.filter(a => a.category_id === cat.id)
@@ -109,7 +151,22 @@ export function aggregateSummary(
         return sum + (assetMap?.get(month) ?? 0)
       }, 0)
     })
-    return { category_id: cat.id, category_name: cat.name, color: cat.color, values }
+    return { category_id: cat.id, category_name: cat.name, color: cat.color, category_type: categoryType(cat), values }
+  })
+
+  const asset_series = assets.map(asset => {
+    const cat = categoryById.get(asset.category_id)
+    const values = months.map(month => locfData.get(asset.id)?.get(month) ?? 0)
+    return {
+      asset_id: asset.id,
+      asset_name: asset.name,
+      category_id: asset.category_id,
+      category_name: cat?.name ?? asset.category_id,
+      color: cat?.color ?? '#64748b',
+      category_type: cat ? categoryType(cat) : 'asset',
+      person_id: asset.person_id,
+      values,
+    }
   })
 
   // totals[i] = sum across all category series for month i
@@ -123,11 +180,46 @@ export function aggregateSummary(
   const period_delta_abs = currentTotal - firstTotal
   const period_delta_pct = firstTotal === 0 ? 0 : (period_delta_abs / firstTotal) * 100
 
+  // monthly_delta_abs: change from second-to-last month to last month
+  const monthly_delta_abs = totals.length >= 2
+    ? totals[totals.length - 1] - totals[totals.length - 2]
+    : 0
+
+  // gross_assets: sum of asset-type category current values
+  const gross_assets = series
+    .filter(s => s.category_type === 'asset')
+    .reduce((sum, s) => sum + (s.values.length > 0 ? s.values[s.values.length - 1] : 0), 0)
+
+  // total_liabilities: sum of liability-type category current values (negative)
+  const total_liabilities = series
+    .filter(s => s.category_type === 'liability')
+    .reduce((sum, s) => sum + (s.values.length > 0 ? s.values[s.values.length - 1] : 0), 0)
+
   const category_breakdown = categories.map(cat => {
     const s = series.find(x => x.category_id === cat.id)!
     const value = s.values.length > 0 ? s.values[s.values.length - 1] : 0
     const pct_of_total = currentTotal === 0 ? 0 : (value / currentTotal) * 100
-    return { category_id: cat.id, category_name: cat.name, color: cat.color, value, pct_of_total }
+    return { category_id: cat.id, category_name: cat.name, color: cat.color, category_type: categoryType(cat), value, pct_of_total }
+  })
+
+  const asset_breakdown = asset_series.map(s => {
+    const value = s.values.length > 0 ? s.values[s.values.length - 1] : 0
+    const prev = s.values.length >= 2 ? s.values[s.values.length - 2] : value
+    const first = s.values.length > 0 ? s.values[0] : value
+    const pct_of_total = currentTotal === 0 ? 0 : (value / currentTotal) * 100
+    return {
+      asset_id: s.asset_id,
+      asset_name: s.asset_name,
+      category_id: s.category_id,
+      category_name: s.category_name,
+      color: s.color,
+      category_type: s.category_type,
+      person_id: s.person_id,
+      value,
+      pct_of_total,
+      monthly_delta_abs: value - prev,
+      period_delta_abs: value - first,
+    }
   })
 
   return {
@@ -135,8 +227,13 @@ export function aggregateSummary(
     series,
     totals,
     current_total: currentTotal,
+    gross_assets,
+    total_liabilities,
+    monthly_delta_abs,
     period_delta_abs,
     period_delta_pct,
     category_breakdown,
+    asset_series,
+    asset_breakdown,
   }
 }

@@ -6,6 +6,7 @@ import type {
   Person,
   SummaryResponse,
   ProjectionsResponse,
+  ProjectionScenario,
   RangeKey,
   CreateCategoryPayload,
   UpdateCategoryPayload,
@@ -118,6 +119,56 @@ export function getDataPoints(): Promise<DataPoint[]> {
   return apiFetch('/data-points')
 }
 
+export interface DataPointsPage {
+  items: DataPoint[]
+  total: number
+}
+
+export interface DataPointsPageParams {
+  limit: number
+  offset?: number
+  person_id?: string
+  asset_id?: string
+  category_id?: string
+  year_month?: string
+}
+
+export function getDataPointsPage(params: DataPointsPageParams): Promise<DataPointsPage> {
+  const p = new URLSearchParams({ limit: String(params.limit) })
+  if (params.offset !== undefined && params.offset > 0) p.set('offset', String(params.offset))
+  if (params.person_id) p.set('person_id', params.person_id)
+  if (params.asset_id) p.set('asset_id', params.asset_id)
+  if (params.category_id) p.set('category_id', params.category_id)
+  if (params.year_month) p.set('year_month', params.year_month)
+  return apiFetch(`/data-points?${p.toString()}`)
+}
+
+/** Returns all data points for a single YYYY-MM month (no pagination). */
+export function getDataPointsForMonth(yearMonth: string): Promise<DataPoint[]> {
+  return apiFetch<DataPoint[]>(`/data-points?year_month=${encodeURIComponent(yearMonth)}`)
+}
+
+// ── Batch upsert ───────────────────────────────────────────────────────────────
+
+export interface BatchUpsertItem {
+  asset_id: string
+  year_month: string
+  value: number
+  notes?: string
+}
+
+export interface BatchUpsertResult {
+  created: number
+  updated: number
+  skipped: number
+  failed: number
+  errors: { asset_id: string; year_month: string; error: string }[]
+}
+
+export function batchUpsertDataPoints(data: { items: BatchUpsertItem[] }): Promise<BatchUpsertResult> {
+  return apiFetch('/data-points/batch', { method: 'POST', body: JSON.stringify(data) })
+}
+
 export function createDataPoint(data: CreateDataPointPayload): Promise<DataPoint> {
   return apiFetch('/data-points', { method: 'POST', body: JSON.stringify(data) })
 }
@@ -141,8 +192,8 @@ export function getSummary(range: RangeKey, person?: string, tracking?: boolean)
 
 // ── Projections ────────────────────────────────────────────────────────────────
 
-export function getProjections(years: number): Promise<ProjectionsResponse> {
-  return apiFetch(`/projections?years=${years}`)
+export function getProjections(years: number, scenario: ProjectionScenario = 'base'): Promise<ProjectionsResponse> {
+  return apiFetch(`/projections?years=${years}&scenario=${scenario}`)
 }
 
 // ── Persons ─────────────────────────────────────────────────────────────────

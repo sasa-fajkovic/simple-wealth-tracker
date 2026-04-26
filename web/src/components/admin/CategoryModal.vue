@@ -16,7 +16,7 @@ const TYPE_OPTIONS = [
   { value: 'asset', label: 'Asset' },
   { value: 'cash-inflow', label: 'Cash Inflow' },
   { value: 'liability', label: 'Liability' },
-] as const
+]
 
 const props = defineProps<{
   mode: 'create' | 'edit'

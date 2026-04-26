@@ -15,10 +15,13 @@ import {
   type ChartOptions,
   type TooltipItem,
   type LegendItem,
+  type Plugin,
 } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import type { ProjectionsResponse } from '../types/index'
 import { useTheme } from '../composables/useTheme'
+import { buildTooltipDefaults, getChartTokens } from '../theme/tokens'
+import { eurFmt, compactFmt } from '../utils/formatters'
 
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement, BarElement,
@@ -26,6 +29,14 @@ ChartJS.register(
 )
 
 type ProjectionChartType = 'area' | 'line' | 'bar'
+
+/** Marker fields added to each chart.js dataset for legend/tooltip filtering. */
+interface ProjDS {
+  _hideFromLegend?: boolean
+  _projChart?: boolean
+  _categoryId?: string
+  _phase?: 'historical' | 'projected'
+}
 
 const props = withDefaults(defineProps<{
   data: ProjectionsResponse
@@ -36,9 +47,6 @@ const props = withDefaults(defineProps<{
 })
 
 const { theme } = useTheme()
-
-const fmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-const compactFmt = new Intl.NumberFormat('de-DE', { notation: 'compact', maximumFractionDigits: 0 })
 
 // All months combined: historical + projection
 const allMonths = computed(() => [
@@ -64,7 +72,70 @@ const mergedSeries = computed(() => {
   })
 })
 
+// When categories are hidden, recompute totals for visible series only.
+// This keeps the "Total" line consistent with what's actually shown in the chart.
+const adjustedHistTotals = computed(() => {
+  if (props.hiddenCategories.size === 0) return props.data.historical.totals
+  const len = props.data.historical.months.length
+  return Array.from({ length: len }, (_, i) =>
+    mergedSeries.value.reduce((sum, s) => sum + (s.histValues[i] ?? 0), 0),
+  )
+})
+
+const adjustedProjTotals = computed(() => {
+  if (props.hiddenCategories.size === 0) return props.data.projection.totals
+  const len = props.data.projection.months.length
+  return Array.from({ length: len }, (_, i) =>
+    mergedSeries.value.reduce((sum, s) => sum + (s.projValues[i] ?? 0), 0),
+  )
+})
+
 const showTotal = computed(() => mergedSeries.value.length > 1)
+
+// Boundary plugin — draws a vertical dashed line with "Historical ←" / "→ Projected" labels
+// at the transition between historical and projected data.
+const boundaryPlugin = computed((): Plugin<'line' | 'bar'> => {
+  const histLen = props.data.historical.months.length
+  const dark = theme.value === 'dark'
+  const lineColor  = dark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.18)'
+  const labelColor = dark ? 'rgba(161,161,170,0.85)' : 'rgba(107,114,128,0.85)'
+
+  return {
+    id: 'projectionBoundary',
+    afterDraw(chart) {
+      if (histLen < 1 || props.data.projection.months.length < 1) return
+      const { ctx, chartArea, scales } = chart
+      const xScale = scales['x']
+      if (!xScale) return
+      // Draw the boundary between last historical bar and first projected bar
+      const leftPx  = xScale.getPixelForValue(histLen - 1)
+      const rightPx = xScale.getPixelForValue(histLen)
+      const midX = (leftPx + rightPx) / 2
+
+      ctx.save()
+      ctx.beginPath()
+      ctx.moveTo(midX, chartArea.top)
+      ctx.lineTo(midX, chartArea.bottom)
+      ctx.strokeStyle = lineColor
+      ctx.lineWidth = 1.5
+      ctx.setLineDash([5, 4])
+      ctx.stroke()
+      ctx.restore()
+
+      // Labels just below the top edge of the chart area
+      ctx.save()
+      ctx.font = '10px ui-sans-serif,system-ui,sans-serif'
+      ctx.fillStyle = labelColor
+      ctx.textBaseline = 'top'
+      const labelY = chartArea.top + 4
+      ctx.textAlign = 'right'
+      ctx.fillText('Historical', midX - 5, labelY)
+      ctx.textAlign = 'left'
+      ctx.fillText('Projected', midX + 5, labelY)
+      ctx.restore()
+    },
+  }
+})
 
 // Bridge value: last historical value connects to first projected value visually.
 // The projected dataset starts one position back (at last hist index) with the bridge.
@@ -75,7 +146,7 @@ function buildNullPaddedDatasets(
   const projLen = props.data.projection.months.length
   const histLen = props.data.historical.months.length
   const dark = theme.value === 'dark'
-  const totalColor = dark ? '#f4f4f5' : '#111827'
+  const totalColor = getChartTokens(dark).totalLine
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const datasets: any[] = []
@@ -102,6 +173,7 @@ function buildNullPaddedDatasets(
         _projChart: true,
         _hideFromLegend: false,
         _categoryId: s.category_id,
+        _phase: 'historical',
       })
       datasets.push({
         label: s.category_name,
@@ -114,6 +186,7 @@ function buildNullPaddedDatasets(
         _projChart: true,
         _hideFromLegend: true,
         _categoryId: s.category_id,
+        _phase: 'projected',
       })
     } else {
       // line / area
@@ -126,10 +199,11 @@ function buildNullPaddedDatasets(
         tension: 0.1,
         pointRadius: 0,
         borderWidth: 2,
-        stack: isArea ? 'wealth' : undefined,
+        stack: isArea ? 'wealth-hist' : undefined,
         _projChart: true,
         _hideFromLegend: false,
         _categoryId: s.category_id,
+        _phase: 'historical',
       })
       datasets.push({
         label: s.category_name,
@@ -141,19 +215,20 @@ function buildNullPaddedDatasets(
         pointRadius: 0,
         borderWidth: 2,
         borderDash: [5, 5],
-        stack: isArea ? 'wealth' : undefined,
+        stack: isArea ? 'wealth-proj' : undefined,
         _projChart: true,
         _hideFromLegend: true,
         _categoryId: s.category_id,
+        _phase: 'projected',
       })
     }
   }
 
-  // Total line
+  // Total line — uses adjusted totals so hidden categories are excluded
   if (showTotal.value) {
-    const totalHistData = [...props.data.historical.totals, ...Array(projLen).fill(null)]
-    const totalBridge = props.data.historical.totals[histLen - 1] ?? null
-    const totalProjData = [...Array(histLen - 1).fill(null), totalBridge, ...props.data.projection.totals]
+    const totalHistData = [...adjustedHistTotals.value, ...Array(projLen).fill(null)]
+    const totalBridge = adjustedHistTotals.value[histLen - 1] ?? null
+    const totalProjData = [...Array(histLen - 1).fill(null), totalBridge, ...adjustedProjTotals.value]
 
     const totalBase = {
       backgroundColor: 'transparent',
@@ -171,6 +246,7 @@ function buildNullPaddedDatasets(
       data: totalHistData,
       borderColor: totalColor,
       _hideFromLegend: false,
+      _phase: 'historical',
     })
     datasets.push({
       ...totalBase,
@@ -179,6 +255,7 @@ function buildNullPaddedDatasets(
       borderColor: totalColor + 'aa',
       borderDash: [5, 5],
       _hideFromLegend: true,
+      _phase: 'projected',
     })
   }
 
@@ -198,14 +275,7 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
   const isBar = props.chartType === 'bar'
   const isArea = props.chartType === 'area'
   const dark = theme.value === 'dark'
-
-  const gridColor     = dark ? '#27272a' : '#e5e7eb'
-  const tickColor     = dark ? '#71717a' : '#6b7280'
-  const legendColor   = dark ? '#a1a1aa' : '#374151'
-  const tooltipBg     = dark ? '#18181b' : '#ffffff'
-  const tooltipTitle  = dark ? '#e4e4e7' : '#111827'
-  const tooltipBody   = dark ? '#a1a1aa' : '#6b7280'
-  const tooltipBorder = dark ? '#3f3f46' : '#e5e7eb'
+  const t = getChartTokens(dark)
 
   return {
     responsive: true,
@@ -215,51 +285,57 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
       legend: {
         labels: {
           font: { size: 12 },
-          color: legendColor,
+          color: t.legend,
+          boxWidth: 12,
+          boxHeight: 12,
+          boxPadding: 4,
           filter: (item: LegendItem, data) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const ds = data.datasets[item.datasetIndex as number] as any
+            const ds = data.datasets[item.datasetIndex as number] as ProjDS
             return !ds._hideFromLegend
           },
         },
         onClick: () => {},
       },
       tooltip: {
-        backgroundColor: tooltipBg,
-        titleColor: tooltipTitle,
-        bodyColor: tooltipBody,
-        borderColor: tooltipBorder,
-        borderWidth: 1,
+        ...buildTooltipDefaults(t),
         callbacks: {
           label: (ctx: TooltipItem<'line'> | TooltipItem<'bar'>) => {
             const y = (ctx.parsed as { y: number }).y
             if (y === null || y === undefined) return ''
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const ds = ctx.dataset as any
-            if (ds._hideFromLegend) return ''
-            return `${ctx.dataset.label}: ${fmt.format(y)}`
+            const ds = ctx.dataset as ProjDS
+            const label = String(ctx.dataset.label ?? '').replace(' (projected)', '')
+            const phase = ds._phase === 'projected' ? ' projected' : ''
+            return `${label}${phase}: ${eurFmt.format(y)}`
           },
         },
         filter: (item: import('chart.js').TooltipItem<'bar' | 'line'>) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const ds = item.dataset as any
-          if (ds._hideFromLegend) return false
+          const ds = item.dataset as ProjDS
+          const histLen = props.data.historical.months.length
+          if (ds._phase === 'projected' && item.dataIndex < histLen) return false
+          if (ds._phase === 'historical' && item.dataIndex >= histLen) return false
           const y = (item.parsed as { y: number }).y
           return y !== null && y !== undefined
         },
       },
       datalabels: { display: false },
     },
+    datasets: {
+      line: {
+        pointHoverRadius: 4,
+      },
+    },
     scales: {
       x: {
-        grid: { color: gridColor },
-        ticks: { color: tickColor, font: { size: 11 }, maxTicksLimit: 12 },
+        grid: { color: t.grid },
+        border: { display: false },
+        ticks: { color: t.tick, font: { size: 11 }, maxTicksLimit: 12 },
       },
       y: {
         stacked: isBar || isArea,
-        grid: { color: gridColor },
+        grid: { color: t.grid },
+        border: { display: false },
         ticks: {
-          color: tickColor,
+          color: t.tick,
           font: { size: 12 },
           callback: (value) => compactFmt.format(value as number),
         },
@@ -275,11 +351,13 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
       v-if="chartType === 'bar'"
       :data="(chartData as ChartData<'bar'>)"
       :options="(chartOptions as ChartOptions<'bar'>)"
+      :plugins="[boundaryPlugin]"
     />
     <Line
       v-else
       :data="(chartData as ChartData<'line'>)"
       :options="(chartOptions as ChartOptions<'line'>)"
+      :plugins="[boundaryPlugin]"
     />
   </div>
 </template>

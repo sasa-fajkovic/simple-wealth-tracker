@@ -5,6 +5,16 @@ A self-hosted family net worth tracker with dead-simple data entry and beautiful
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
 ![License](https://img.shields.io/github/license/sasa-fajkovic/simple-wealth-tracker)
 
+## Preview
+
+| Overview (light) | Projections (dark) |
+|---|---|
+| ![WealthTrack overview in light theme](docs/demo/overview-light.gif) | ![WealthTrack projections in dark theme](docs/demo/projections-dark.gif) |
+
+| Cash inflow (light) | Monthly update and admin (dark) |
+|---|---|
+| ![Cash inflow dashboard in light theme](docs/demo/cash-inflow-light.gif) | ![Monthly update and admin screens in dark theme](docs/demo/monthly-admin-dark.gif) |
+
 ## Features
 
 - 📊 Track net worth across categories (stocks, real estate, crypto, cash, liabilities, …)

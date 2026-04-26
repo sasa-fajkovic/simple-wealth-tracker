@@ -19,8 +19,10 @@ const props = defineProps<{
   onCancel: () => void
 }>()
 
-// "Everyone" sentinel — empty string means no filter
-const personFilter = ref<string>('')
+// "Everyone" sentinel. Use a non-empty value so PrimeVue Select renders the
+// selected label instead of treating the option as blank.
+const everyonePersonId = '__everyone__'
+const personFilter = ref<string>(everyonePersonId)
 const assetId = ref(props.mode === 'edit' ? props.item!.asset_id : '')
 const yearMonth = ref(props.mode === 'edit' ? props.item!.year_month : '')
 const value = ref<number | null>(props.mode === 'edit' ? props.item!.value : null)
@@ -28,12 +30,12 @@ const notes = ref(props.mode === 'edit' ? (props.item!.notes ?? '') : '')
 const validationError = ref<string | null>(null)
 
 const personFilterOptions = computed(() => [
-  { id: '', name: 'Everyone' },
+  { id: everyonePersonId, name: 'Everyone' },
   ...props.persons,
 ])
 
 const filteredAssets = computed(() =>
-  personFilter.value === '' ? props.assets : props.assets.filter(a => a.person_id === personFilter.value)
+  personFilter.value === everyonePersonId ? props.assets : props.assets.filter(a => a.person_id === personFilter.value)
 )
 
 // Derive the category type of the currently selected asset
@@ -75,29 +77,40 @@ function handleSubmit() {
 </script>
 
 <template>
+  <!--
+    Mobile sheet behaviour (≤640 px): full-screen panel with sticky actions.
+    wt-sheet-mask / wt-sheet classes are defined in index.css under
+    "Dialog mobile sheet". On desktop this is a standard centred modal.
+  -->
   <Dialog
     :header="mode === 'create' ? 'Add Data Point' : 'Edit Data Point'"
     :visible="true"
     @update:visible="(v) => !v && onCancel()"
     :style="{ width: '32rem' }"
+    :breakpoints="{ '640px': '100vw' }"
+    :pt="{ mask: { class: 'wt-sheet-mask' }, root: { class: 'wt-sheet' } }"
     modal
     :draggable="false"
+    :dismissable-mask="true"
   >
+    <!-- Person filter (create mode only) -->
     <template v-if="mode === 'create'">
-      <div class="mb-3">
-        <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Person</label>
+      <div class="mb-4">
+        <label class="block text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Show assets for</label>
         <Select
           v-model="personFilter"
           :options="personFilterOptions"
           option-label="name"
           option-value="id"
+          placeholder="Everyone"
           class="w-full"
           @update:model-value="onPersonFilterChange"
         />
       </div>
     </template>
-    <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Asset</label>
+
+    <div class="mb-4">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Asset</label>
       <Select
         v-model="assetId"
         :options="filteredAssets"
@@ -108,30 +121,47 @@ function handleSubmit() {
         class="w-full"
       />
     </div>
-    <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Month</label>
+
+    <div class="mb-4">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Month</label>
       <input
         type="month"
         v-model="yearMonth"
-        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full px-3 text-sm border border-gray-300 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        style="min-height: 44px"
         required
       />
     </div>
-    <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Value (EUR)</label>
-      <InputNumber v-model="value" mode="decimal" :min-fraction-digits="0" :max-fraction-digits="0" :min="-999999999" :max="isLiability ? 0 : undefined" class="w-full" />
-      <p v-if="isLiability" class="text-xs text-orange-500 dark:text-orange-400 mt-1">Liability — enter a negative value (e.g. -50000 for a €50,000 debt)</p>
+
+    <div class="mb-4">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Value (EUR)</label>
+      <InputNumber
+        v-model="value"
+        mode="decimal"
+        :min-fraction-digits="0"
+        :max-fraction-digits="0"
+        :min="-999999999"
+        :max="isLiability ? 0 : undefined"
+        class="w-full"
+      />
+      <p v-if="isLiability" class="text-xs text-orange-500 dark:text-orange-400 mt-1.5">
+        Liability — enter a negative value (e.g. -50000 for a €50,000 debt)
+      </p>
     </div>
-    <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Notes (optional)</label>
+
+    <div class="mb-2">
+      <label class="block text-xs font-semibold text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1.5">Notes (optional)</label>
       <InputText v-model="notes" class="w-full" />
     </div>
+
     <p v-if="validationError" class="text-xs text-red-600 mt-2">{{ validationError }}</p>
     <p v-if="saveError" class="text-xs text-red-600 mt-2">{{ saveError }}</p>
+
+    <!-- Sticky footer: naturally sticks to bottom of Dialog in PrimeVue -->
     <template #footer>
       <div class="flex justify-end gap-2">
-        <Button label="Cancel" outlined @click="onCancel" type="button" />
-        <Button :label="saving ? 'Saving…' : 'Save'" :disabled="saving" @click="handleSubmit" type="button" />
+        <Button label="Cancel" outlined class="min-h-[44px]" @click="onCancel" type="button" />
+        <Button :label="saving ? 'Saving…' : 'Save'" :disabled="saving" class="min-h-[44px]" @click="handleSubmit" type="button" />
       </div>
     </template>
   </Dialog>

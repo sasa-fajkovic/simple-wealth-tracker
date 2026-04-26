@@ -189,4 +189,31 @@ describe('aggregateSummary', () => {
     assert.equal(result.period_delta_abs, 500, 'delta_abs = 1500 - 1000')
     assert.equal(result.period_delta_pct, 50, 'delta_pct = 50% gain')
   })
+
+  test('asset detail series and breakdown expose drilldown values', () => {
+    const cat = makeCategory('cat1', 'Stocks', '#123456')
+    const a1 = makeAsset('a1', 'cat1')
+    const a2 = makeAsset('a2', 'cat1')
+    const dps = [
+      makeDP('a1', '2024-01', 1000, '2024-01-01T00:00:00.000Z'),
+      makeDP('a1', '2024-03', 1400, '2024-03-01T00:00:00.000Z'),
+      makeDP('a2', '2024-02', 500, '2024-02-01T00:00:00.000Z'),
+      makeDP('a2', '2024-03', 700, '2024-03-01T00:00:00.000Z'),
+    ]
+    const locfData = locfFill(months3, dps, [a1, a2])
+    const result = aggregateSummary([a1, a2], [cat], locfData, months3)
+
+    assert.equal(result.asset_series.length, 2)
+    assert.deepEqual(result.asset_series.find(s => s.asset_id === 'a1')?.values, [1000, 1000, 1400])
+    assert.deepEqual(result.asset_series.find(s => s.asset_id === 'a2')?.values, [0, 500, 700])
+
+    const a1Breakdown = result.asset_breakdown.find(row => row.asset_id === 'a1')
+    assert.equal(a1Breakdown?.asset_name, 'a1')
+    assert.equal(a1Breakdown?.category_name, 'Stocks')
+    assert.equal(a1Breakdown?.category_type, 'asset')
+    assert.equal(a1Breakdown?.person_id, 'test-person')
+    assert.equal(a1Breakdown?.value, 1400)
+    assert.equal(a1Breakdown?.monthly_delta_abs, 400)
+    assert.equal(a1Breakdown?.period_delta_abs, 400)
+  })
 })

@@ -141,8 +141,13 @@ async function handleForceConfirm() {
 
 <template>
   <div>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-medium text-gray-700 dark:text-zinc-300">{{ tabLabel }}</h2>
+    <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
+      <div>
+        <h2 class="text-sm font-semibold text-gray-900 dark:text-zinc-100">{{ tabLabel }}</h2>
+        <p class="mt-1 text-xs text-gray-500 dark:text-zinc-400">
+          {{ displayRows.length }} tracked {{ tabLabel.toLowerCase() }} item{{ displayRows.length === 1 ? '' : 's' }}
+        </p>
+      </div>
       <Button :label="`Add ${tabLabel}`" icon="pi pi-plus" size="small" @click="modal = { mode: 'create' }" />
     </div>
 
@@ -164,29 +169,62 @@ async function handleForceConfirm() {
 
     <DataTable
       v-else-if="!loading && !error"
+      class="wt-admin-table"
       :value="displayRows"
       :sort-field="sortField"
       :sort-order="sortOrder"
+      :pt="{ table: { 'aria-label': `${tabLabel} table` } }"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
       striped-rows
       size="small"
     >
-      <Column field="name" header="Name" sortable />
-      <Column field="categoryName" header="Category" sortable />
-      <Column field="growthFormatted" header="Growth Rate" />
+      <Column field="name" header="Name" sortable>
+        <template #body="{ data: row }">
+          <div class="min-w-44">
+            <p class="font-medium text-gray-900 dark:text-zinc-100">{{ row.name }}</p>
+            <p class="mt-0.5 text-xs text-gray-400 dark:text-zinc-500">{{ row.id }}</p>
+          </div>
+        </template>
+      </Column>
+      <Column field="categoryName" header="Category" sortable>
+        <template #body="{ data: row }">
+          <div class="inline-flex items-center gap-2 rounded-full bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-zinc-800 dark:text-zinc-300">
+            <span class="h-2 w-2 rounded-full" :style="{ backgroundColor: categoryMap[row.category_id]?.color ?? '#64748b' }" />
+            {{ row.categoryName }}
+          </div>
+        </template>
+      </Column>
+      <Column field="growthFormatted" header="Growth Rate">
+        <template #body="{ data: row }">
+          <span
+            class="inline-flex rounded-full px-2 py-1 text-xs font-semibold tabular-nums"
+            :class="row.projected_yearly_growth === null
+              ? 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400'
+              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'"
+          >{{ row.growthFormatted }}</span>
+        </template>
+      </Column>
       <Column field="location" header="Location">
-        <template #body="{ data: row }">{{ row.location ?? '—' }}</template>
+        <template #body="{ data: row }">
+          <span class="text-gray-600 dark:text-zinc-400">{{ row.location ?? '—' }}</span>
+        </template>
       </Column>
       <Column field="notes" header="Notes">
-        <template #body="{ data: row }">{{ row.notes ?? '—' }}</template>
+        <template #body="{ data: row }">
+          <span class="block max-w-56 truncate text-gray-500 dark:text-zinc-500">{{ row.notes ?? '—' }}</span>
+        </template>
       </Column>
-      <Column field="personName" header="Person" />
+      <Column field="personName" header="Person">
+        <template #body="{ data: row }">
+          <span class="text-gray-700 dark:text-zinc-300">{{ row.personName }}</span>
+        </template>
+      </Column>
       <Column header="Actions" style="width: 8rem">
         <template #body="{ data: row }">
-          <div class="flex items-center gap-2">
-            <Button icon="pi pi-pencil" text size="small" aria-label="Edit"
+          <div class="flex items-center justify-end gap-1">
+            <Button icon="pi pi-pencil" text size="small" :aria-label="`Edit asset ${row.name}`"
               @click="() => { const orig = rows.find(r => r.id === row.id); if (orig) modal = { mode: 'edit', item: orig } }" />
-            <Button icon="pi pi-trash" text size="small" severity="danger" aria-label="Delete"
+            <Button icon="pi pi-trash" text size="small" severity="danger" :aria-label="`Delete asset ${row.name}`"
               @click="handleDeleteClick(row)" />
           </div>
         </template>
@@ -244,4 +282,3 @@ async function handleForceConfirm() {
     />
   </div>
 </template>
-

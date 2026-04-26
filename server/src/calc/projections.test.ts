@@ -164,3 +164,58 @@ describe('buildProjection', () => {
       `totals[0] must equal sum of series values at index 0`)
   })
 })
+
+// ── rateMultiplier (scenario) ──────────────────────────────────────────────────
+
+describe('buildProjection rateMultiplier', () => {
+  test('base (multiplier=1.0) matches default behaviour', () => {
+    const cat = makeCategory('cat1', 0.08)
+    const asset = makeAsset('a1', 'cat1', null)
+    const dp = makeDP('a1', '2024-01', 10000)
+    const base = buildProjection([asset], [cat], [dp], 1)
+    const explicit = buildProjection([asset], [cat], [dp], 1, 1.0)
+    assert.ok(Math.abs(base.series[0].values[11] - explicit.series[0].values[11]) < 0.0001,
+      'explicit 1.0 multiplier must equal no-arg default')
+  })
+
+  test('conservative (0.5×) produces lower values than base', () => {
+    const seed = 10000
+    const cat = makeCategory('cat1', 0.08)
+    const asset = makeAsset('a1', 'cat1', null)
+    const dp = makeDP('a1', '2024-01', seed)
+    const base = buildProjection([asset], [cat], [dp], 1, 1.0)
+    const conservative = buildProjection([asset], [cat], [dp], 1, 0.5)
+    assert.ok(conservative.series[0].values[11] < base.series[0].values[11],
+      'conservative must produce lower final value than base')
+    // 0.5 × 8% = 4% annual → after 12 months ≈ seed * 1.04
+    assert.ok(Math.abs(conservative.series[0].values[11] - seed * 1.04) < 0.1,
+      'conservative 0.5×8% ≈ 4% annual growth')
+  })
+
+  test('aggressive (1.5×) produces higher values than base', () => {
+    const seed = 10000
+    const cat = makeCategory('cat1', 0.08)
+    const asset = makeAsset('a1', 'cat1', null)
+    const dp = makeDP('a1', '2024-01', seed)
+    const base = buildProjection([asset], [cat], [dp], 1, 1.0)
+    const aggressive = buildProjection([asset], [cat], [dp], 1, 1.5)
+    assert.ok(aggressive.series[0].values[11] > base.series[0].values[11],
+      'aggressive must produce higher final value than base')
+    // 1.5 × 8% = 12% annual → after 12 months ≈ seed * 1.12
+    assert.ok(Math.abs(aggressive.series[0].values[11] - seed * 1.12) < 0.1,
+      'aggressive 1.5×8% ≈ 12% annual growth')
+  })
+
+  test('zero growth rate is unaffected by any multiplier', () => {
+    const cat = makeCategory('cat1', 0.0)
+    const asset = makeAsset('a1', 'cat1', 0) // explicit 0%
+    const dp = makeDP('a1', '2024-01', 5000)
+    const conservative = buildProjection([asset], [cat], [dp], 1, 0.5)
+    const aggressive = buildProjection([asset], [cat], [dp], 1, 1.5)
+    // 0 × any multiplier = 0, so seed stays constant
+    assert.ok(Math.abs(conservative.series[0].values[0] - 5000) < 0.001,
+      'zero growth with conservative: value stays at seed')
+    assert.ok(Math.abs(aggressive.series[0].values[0] - 5000) < 0.001,
+      'zero growth with aggressive: value stays at seed')
+  })
+})

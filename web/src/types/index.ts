@@ -107,21 +107,56 @@ export type RangeKey = 'ytd' | '6m' | '1y' | '2y' | '3y' | '5y' | '10y' | 'max'
 
 export interface SummaryResponse {
   months: string[]
-  series: { category_id: string; category_name: string; color: string; values: number[] }[]
+  series: {
+    category_id: string
+    category_name: string
+    color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
+    values: number[]
+  }[]
   totals: number[]
   current_total: number
+  gross_assets: number
+  total_liabilities: number
+  monthly_delta_abs: number
   period_delta_abs: number
   period_delta_pct: number
   category_breakdown: {
     category_id: string
     category_name: string
     color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
     value: number
     pct_of_total: number
+  }[]
+  asset_series: {
+    asset_id: string
+    asset_name: string
+    category_id: string
+    category_name: string
+    color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
+    person_id: string
+    values: number[]
+  }[]
+  asset_breakdown: {
+    asset_id: string
+    asset_name: string
+    category_id: string
+    category_name: string
+    color: string
+    category_type: 'asset' | 'cash-inflow' | 'liability'
+    person_id: string
+    value: number
+    pct_of_total: number
+    monthly_delta_abs: number
+    period_delta_abs: number
   }[]
 }
 
 // ── Projections API ────────────────────────────────────────────────────────────
+
+export type ProjectionScenario = 'conservative' | 'base' | 'aggressive'
 
 export interface ProjectionsResponse {
   historical: SummaryResponse

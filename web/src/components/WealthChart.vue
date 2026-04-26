@@ -17,9 +17,12 @@ import {
   type TooltipItem,
 } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
+import type { Context as DatalabelsContext } from 'chartjs-plugin-datalabels'
 import type { SummaryResponse } from '../types/index'
 import type { ChartType } from '../composables/useChartType'
 import { useTheme } from '../composables/useTheme'
+import { buildTooltipDefaults, getChartTokens, wealthColors } from '../theme/tokens'
+import { eurFmt, compactFmt } from '../utils/formatters'
 
 ChartJS.register(
   CategoryScale,
@@ -44,9 +47,6 @@ const props = withDefaults(defineProps<{
 
 const { theme } = useTheme()
 
-const fmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
-const compactFmt = new Intl.NumberFormat('de-DE', { notation: 'compact', maximumFractionDigits: 0 })
-
 const visibleSeries = computed(() =>
   props.data.series.filter(s => !props.hiddenCategories.has(s.category_id))
 )
@@ -54,10 +54,67 @@ const visibleSeries = computed(() =>
 const labels = computed(() => props.data.months.map(m => m.slice(0, 7)))
 
 const showTotal = computed(() => visibleSeries.value.length > 1)
+const displayedTotals = computed(() =>
+  props.data.months.map((_, i) =>
+    visibleSeries.value.reduce((sum, s) => sum + s.values[i], 0)
+  )
+)
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const normalized = hex.replace('#', '').slice(0, 6)
+  if (!/^[\da-f]{6}$/i.test(normalized)) return null
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  }
+}
+
+function relativeLuminance(hex: string): number {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return 0
+  const toLinear = (channel: number) => {
+    const value = channel / 255
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * toLinear(rgb.r) + 0.7152 * toLinear(rgb.g) + 0.0722 * toLinear(rgb.b)
+}
+
+function sliceColor(ctx: DatalabelsContext): string {
+  const colors = ctx.dataset.backgroundColor
+  if (Array.isArray(colors)) return String(colors[ctx.dataIndex] ?? '#64748b')
+  return typeof colors === 'string' ? colors : '#64748b'
+}
+
+function readablePieTextColor(ctx: DatalabelsContext): string {
+  return relativeLuminance(sliceColor(ctx)) > 0.48 ? '#111827' : '#ffffff'
+}
+
+function pieTextStrokeColor(ctx: DatalabelsContext): string {
+  return readablePieTextColor(ctx) === '#ffffff' ? 'rgba(17, 24, 39, 0.45)' : 'rgba(255, 255, 255, 0.55)'
+}
 
 const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
   const series = visibleSeries.value
+  const isTrend = props.chartType === 'trend'
   const isArea = props.chartType === 'area'
+
+  if (isTrend) {
+    const color = wealthColors.cashInflow.teal
+    return {
+      labels: labels.value,
+      datasets: [{
+        label: 'Total Cash Inflow',
+        data: displayedTotals.value,
+        borderColor: color,
+        backgroundColor: color + '22',
+        fill: true,
+        tension: 0.2,
+        pointRadius: 3,
+        pointHoverRadius: 5,
+        borderWidth: 3,
+      }],
+    } as ChartData<'line'>
+  }
 
   if (props.chartType === 'bar') {
     return {
@@ -68,7 +125,8 @@ const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
         backgroundColor: s.color + 'cc',
         borderColor: s.color,
         borderWidth: 1,
-        stack: 'wealth',
+        // Separate stacks so liabilities go below zero and assets stack above
+        stack: s.category_type === 'liability' ? 'liabilities' : 'assets',
       })),
     } as ChartData<'bar'>
   }
@@ -82,17 +140,17 @@ const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
     tension: 0.1,
     pointRadius: 0,
     borderWidth: 2,
-    stack: isArea ? 'wealth' : undefined,
+    // Liabilities: dashed line for visual distinction
+    borderDash: s.category_type === 'liability' ? [5, 4] : undefined,
+    stack: isArea ? (s.category_type === 'liability' ? 'liabilities' : 'assets') : undefined,
   }))
 
   if (showTotal.value) {
-    const totals = props.data.months.map((_, i) =>
-      series.reduce((sum, s) => sum + s.values[i], 0)
-    )
+    const t = getChartTokens(theme.value === 'dark')
     datasets.push({
       label: 'Total',
-      data: totals,
-      borderColor: theme.value === 'dark' ? '#f4f4f5' : '#111827',
+      data: displayedTotals.value,
+      borderColor: t.totalLine,
       backgroundColor: 'transparent',
       fill: false,
       tension: 0.1,
@@ -122,11 +180,7 @@ const pieData = computed((): ChartData<'pie'> => {
 
 const pieOptions = computed((): ChartOptions<'pie'> => {
   const dark = theme.value === 'dark'
-  const tooltipBg    = dark ? '#18181b' : '#ffffff'
-  const tooltipTitle = dark ? '#e4e4e7' : '#111827'
-  const tooltipBody  = dark ? '#a1a1aa' : '#6b7280'
-  const tooltipBorder= dark ? '#3f3f46' : '#e5e7eb'
-  const labelColor   = dark ? '#f4f4f5' : '#111827'
+  const t = getChartTokens(dark)
   return {
     responsive: true,
     maintainAspectRatio: false,
@@ -136,18 +190,13 @@ const pieOptions = computed((): ChartOptions<'pie'> => {
       },
       tooltip: {
         enabled: true,
-        backgroundColor: tooltipBg,
-        titleColor: tooltipTitle,
-        bodyColor: tooltipBody,
-        borderColor: tooltipBorder,
-        borderWidth: 1,
-        padding: 10,
+        ...buildTooltipDefaults(t),
         callbacks: {
           label: (ctx) => {
             const total = (ctx.dataset.data as number[]).reduce((a: number, b: unknown) => a + (b as number), 0)
             const value = ctx.raw as number
             const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0'
-            return ` ${fmt.format(value)}  (${pct}%)`
+            return ` ${eurFmt.format(value)}  (${pct}%)`
           },
         },
       },
@@ -156,15 +205,22 @@ const pieOptions = computed((): ChartOptions<'pie'> => {
           const data = ctx.dataset.data as number[]
           const total = data.reduce((a, b) => a + b, 0)
           const value = data[ctx.dataIndex] ?? 0
-          return total > 0 && value / total > 0.05
+          return total > 0 && value / total > 0.07
         },
-        color: labelColor,
-        font: { size: 11, weight: 'bold' },
+        color: readablePieTextColor,
+        textStrokeColor: pieTextStrokeColor,
+        textStrokeWidth: 2,
+        font: {
+          family: "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+          size: 12,
+          weight: 'bold',
+          lineHeight: 1.25,
+        },
         formatter: (value: number, ctx) => {
           const label = ctx.chart.data.labels?.[ctx.dataIndex] ?? ''
           const total = (ctx.dataset.data as number[]).reduce((a, b) => a + b, 0)
           const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0'
-          return `${label}\n${fmt.format(value)}\n${pct}%`
+          return `${label}\n${pct}%`
         },
         textAlign: 'center',
         anchor: 'center',
@@ -176,17 +232,11 @@ const pieOptions = computed((): ChartOptions<'pie'> => {
 })
 
 const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => {
+  const isTrend = props.chartType === 'trend'
   const isBar = props.chartType === 'bar'
   const isArea = props.chartType === 'area'
   const dark = theme.value === 'dark'
-
-  const gridColor    = dark ? '#27272a' : '#e5e7eb'
-  const tickColor    = dark ? '#71717a' : '#6b7280'
-  const legendColor  = dark ? '#a1a1aa' : '#374151'
-  const tooltipBg    = dark ? '#18181b' : '#ffffff'
-  const tooltipTitle = dark ? '#e4e4e7' : '#111827'
-  const tooltipBody  = dark ? '#a1a1aa' : '#6b7280'
-  const tooltipBorder= dark ? '#3f3f46' : '#e5e7eb'
+  const t = getChartTokens(dark)
 
   return {
     responsive: true,
@@ -197,38 +247,45 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
     },
     plugins: {
       legend: {
+        display: !isTrend,
         labels: {
           font: { size: 12 },
-          color: legendColor,
+          color: t.legend,
+          boxWidth: 12,
+          boxHeight: 12,
+          boxPadding: 4,
           filter: (item) => item.text !== 'Total',
         },
         onClick: () => {},
       },
       tooltip: {
-        backgroundColor: tooltipBg,
-        titleColor: tooltipTitle,
-        bodyColor: tooltipBody,
-        borderColor: tooltipBorder,
-        borderWidth: 1,
+        ...buildTooltipDefaults(t),
         callbacks: {
           label: (ctx: TooltipItem<'line'> | TooltipItem<'bar'>) => {
             const y = (ctx.parsed as { y: number }).y
-            return `${ctx.dataset.label}: ${fmt.format(y)}`
+            return isTrend ? ` ${eurFmt.format(y)}` : `${ctx.dataset.label}: ${eurFmt.format(y)}`
           },
         },
       },
       datalabels: { display: false },
     },
+    datasets: {
+      line: {
+        pointHoverRadius: 4,
+      },
+    },
     scales: {
       x: {
-        grid: { color: gridColor },
-        ticks: { color: tickColor, font: { size: 12 } },
+        grid: { color: t.grid },
+        border: { display: false },
+        ticks: { color: t.tick, font: { size: 12 } },
       },
       y: {
         stacked: isBar || isArea,
-        grid: { color: gridColor },
+        grid: { color: t.grid },
+        border: { display: false },
         ticks: {
-          color: tickColor,
+          color: t.tick,
           font: { size: 12 },
           callback: (value) => compactFmt.format(value as number),
         },
@@ -242,18 +299,18 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
   <div class="h-[420px]">
     <Pie
       v-if="chartType === 'pie'"
-      :data="(pieData as any)"
-      :options="(pieOptions as any)"
+      :data="(pieData as ChartData<'pie'>)"
+      :options="(pieOptions as ChartOptions<'pie'>)"
     />
     <Bar
       v-else-if="chartType === 'bar'"
-      :data="(chartData as any)"
-      :options="(chartOptions as any)"
+      :data="(chartData as ChartData<'bar'>)"
+      :options="(chartOptions as ChartOptions<'bar'>)"
     />
     <Line
       v-else
-      :data="(chartData as any)"
-      :options="(chartOptions as any)"
+      :data="(chartData as ChartData<'line'>)"
+      :options="(chartOptions as ChartOptions<'line'>)"
     />
   </div>
 </template>

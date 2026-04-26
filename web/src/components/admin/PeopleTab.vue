@@ -142,6 +142,7 @@ function setReassignTo(val: string) {
       :value="rows"
       :sort-field="sortField"
       :sort-order="sortOrder"
+      :pt="{ table: { 'aria-label': 'People table' } }"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
       striped-rows
       size="small"
@@ -151,8 +152,8 @@ function setReassignTo(val: string) {
       <Column header="Actions" style="width: 8rem">
         <template #body="{ data: row }">
           <div class="flex items-center gap-2">
-            <Button icon="pi pi-pencil" text size="small" aria-label="Edit" @click="modal = { mode: 'edit', item: row }" />
-            <Button icon="pi pi-trash" text size="small" severity="danger" aria-label="Delete"
+            <Button icon="pi pi-pencil" text size="small" :aria-label="`Edit person ${row.name}`" @click="modal = { mode: 'edit', item: row }" />
+            <Button icon="pi pi-trash" text size="small" severity="danger" :aria-label="`Delete person ${row.name}`"
               :disabled="rows.length === 1"
               v-tooltip.top="rows.length === 1 ? 'Cannot delete the only person — assets cannot be reassigned' : undefined"
               @click="handleDeleteClick(row)" />

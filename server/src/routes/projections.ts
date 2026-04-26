@@ -13,8 +13,11 @@ const router = new Hono()
 
 // PROJ-01: years param — integer, default 10, min 1, max 30
 // z.coerce.number() required: query params arrive as strings ("10" not 10)
+// scenario — conservative/base/aggressive adjusts growth rate multiplier (PROJ-SC)
 const querySchema = z.object({
-  years: z.coerce.number().int().min(1).max(30).default(10)
+  years: z.coerce.number().int().min(1).max(30).default(10),
+  // Scenario multipliers: conservative=0.5×, base=1.0× (default), aggressive=1.5×
+  scenario: z.enum(['conservative', 'base', 'aggressive']).default('base'),
 })
 
 // Same hook pattern as all other routes — returns {"error":"..."} on validation failure (API-01)
@@ -25,7 +28,9 @@ const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
 }
 
 router.get('/', zValidator('query', querySchema, hook), async (c) => {
-  const { years } = c.req.valid('query')
+  const { years, scenario } = c.req.valid('query')
+  // PROJ-SC: scenario → rate multiplier. base preserves existing behaviour exactly.
+  const rateMultiplier = scenario === 'conservative' ? 0.5 : scenario === 'aggressive' ? 1.5 : 1.0
   const { db, dataPoints } = await readDbAndDataPoints()
 
   // Exclude cash-inflow-only categories from projections (same as net-worth chart)
@@ -68,7 +73,7 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
   // Projection portion: buildProjection derives its own latestMonth from dataPoints
   // — same dataPoints array → boundary is guaranteed consistent (no overlap)
   // No try/catch: errors propagate to app.onError in index.ts
-  const projection = buildProjection(wealthAssets, wealthCategories, wealthDataPoints, years)
+  const projection = buildProjection(wealthAssets, wealthCategories, wealthDataPoints, years, rateMultiplier)
 
   // PROJ-05: combined response with both keys
   return c.json({ historical, projection })

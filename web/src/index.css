@@ -3,12 +3,34 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light dark;
+  /* WealthTrack surface tokens */
+  --wt-bg: #f9fafb;
+  --wt-surface: #ffffff;
+  --wt-surface-border: #e5e7eb;
+  --wt-text: #111827;
+  --wt-text-muted: #6b7280;
+  /* WealthTrack semantic financial colors */
+  --wt-asset: #6366f1;
+  --wt-inflow: #22c55e;
+  --wt-liability: #f43f5e;
+  /* Chart accent */
+  --wt-total-line: #111827;
+}
+
+.p-dark {
   color-scheme: dark;
+  --wt-bg: #09090b;
+  --wt-surface: #18181b;
+  --wt-surface-border: #3f3f46;
+  --wt-text: #f4f4f5;
+  --wt-text-muted: #71717a;
+  --wt-total-line: #f4f4f5;
 }
 
 body {
-  background-color: #09090b;
-  color: #f4f4f5;
+  background-color: var(--wt-bg);
+  color: var(--wt-text);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -17,7 +39,635 @@ a {
   text-decoration: none;
 }
 
-/* Recently-added DataPoint rows (< 10 min old) — muted amber for dark bg */
+/* WealthTrack card surface */
+.wt-card {
+  background-color: var(--wt-surface);
+  border: 1px solid var(--wt-surface-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+}
+
+/* Unified rounded action buttons. PrimeVue Button defaults are normalized here
+   so admin, monthly update, and page actions share the softer Projections style. */
+.p-button {
+  min-height: 2.75rem;
+  border-radius: 0.75rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.p-button:not(.p-button-text):not(.p-button-link):not(.p-button-outlined) {
+  border-color: #a7f3d0 !important;
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+}
+
+.p-button:not(.p-button-text):not(.p-button-link):not(.p-button-outlined):hover {
+  border-color: #6ee7b7 !important;
+  background: #d1fae5 !important;
+  color: #065f46 !important;
+}
+
+.p-button.p-button-secondary:not(.p-button-text):not(.p-button-link),
+.p-button.p-button-outlined {
+  border-color: transparent !important;
+  background: rgba(243, 244, 246, 0.9) !important;
+  color: #374151 !important;
+}
+
+.p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):hover,
+.p-button.p-button-outlined:hover {
+  background: #e5e7eb !important;
+  color: #111827 !important;
+}
+
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-link) {
+  border-color: #fecdd3 !important;
+  background: #fff1f2 !important;
+  color: #be123c !important;
+}
+
+.p-button.p-button-danger:not(.p-button-text):not(.p-button-link):hover {
+  border-color: #fda4af !important;
+  background: #ffe4e6 !important;
+  color: #9f1239 !important;
+}
+
+.p-button.p-button-text,
+.p-button.p-button-link {
+  min-height: 2.25rem;
+  border-color: transparent !important;
+  background: transparent !important;
+  color: #4b5563 !important;
+}
+
+.p-button.p-button-text:hover,
+.p-button.p-button-link:hover {
+  background: rgba(243, 244, 246, 0.9) !important;
+  color: #111827 !important;
+}
+
+.p-button.p-button-danger.p-button-text {
+  color: #be123c !important;
+}
+
+.p-button.p-button-danger.p-button-text:hover {
+  background: #fff1f2 !important;
+  color: #9f1239 !important;
+}
+
+.p-dark .p-button:not(.p-button-text):not(.p-button-link):not(.p-button-outlined) {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+  background: rgba(6, 78, 59, 0.36) !important;
+  color: #6ee7b7 !important;
+}
+
+.p-dark .p-button:not(.p-button-text):not(.p-button-link):not(.p-button-outlined):hover {
+  background: rgba(6, 95, 70, 0.5) !important;
+  color: #a7f3d0 !important;
+}
+
+.p-dark .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link),
+.p-dark .p-button.p-button-outlined {
+  border-color: transparent !important;
+  background: rgba(39, 39, 42, 0.8) !important;
+  color: #e4e4e7 !important;
+}
+
+.p-dark .p-button.p-button-secondary:not(.p-button-text):not(.p-button-link):hover,
+.p-dark .p-button.p-button-outlined:hover,
+.p-dark .p-button.p-button-text:hover,
+.p-dark .p-button.p-button-link:hover {
+  background: rgba(63, 63, 70, 0.85) !important;
+  color: #f4f4f5 !important;
+}
+
+.p-dark .p-button.p-button-text,
+.p-dark .p-button.p-button-link {
+  color: #d4d4d8 !important;
+}
+
+.p-dark .p-button.p-button-danger:not(.p-button-text):not(.p-button-link) {
+  border-color: rgba(225, 29, 72, 0.3) !important;
+  background: rgba(136, 19, 55, 0.34) !important;
+  color: #fda4af !important;
+}
+
+.p-dark .p-button.p-button-danger:not(.p-button-text):not(.p-button-link):hover,
+.p-dark .p-button.p-button-danger.p-button-text:hover {
+  background: rgba(159, 18, 57, 0.45) !important;
+  color: #fecdd3 !important;
+}
+
+.wt-soft-link {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: rgba(243, 244, 246, 0.9);
+  padding: 0 0.75rem;
+  color: #374151;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.wt-soft-link:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.p-dark .wt-soft-link {
+  background: rgba(39, 39, 42, 0.8);
+  color: #e4e4e7;
+}
+
+.p-dark .wt-soft-link:hover {
+  background: rgba(63, 63, 70, 0.85);
+  color: #f4f4f5;
+}
+
+/* Recently-added DataPoint rows (< 10 min old) — subtle amber left border + faint tint */
 .row-recent > td {
-  background-color: #422006 !important;
+  background-color: rgba(245, 158, 11, 0.07) !important;
+}
+.row-recent > td:first-child {
+  box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.75);
+}
+
+/* PrimeVue SelectButton touch-target helper for dense control groups. */
+.wt-touch-select .p-togglebutton,
+.wt-touch-select .p-button {
+  min-height: 44px;
+}
+
+/* Soft segmented controls used in dense analysis toolbars. */
+.wt-soft-select {
+  display: inline-flex !important;
+  width: max-content !important;
+  max-width: 100%;
+  align-self: flex-start;
+  gap: 0.25rem;
+  padding: 0.125rem;
+  border-radius: 0.625rem;
+  background: rgba(243, 244, 246, 0.75);
+}
+
+.p-dark .wt-soft-select {
+  background: rgba(39, 39, 42, 0.55);
+}
+
+.wt-soft-select .p-togglebutton,
+.wt-soft-select .p-button {
+  border: 0 !important;
+  border-radius: 0.5rem !important;
+  background: transparent !important;
+  color: #6b7280 !important;
+  box-shadow: none !important;
+  padding-inline: 0.75rem !important;
+}
+
+.wt-soft-select .p-togglebutton:focus,
+.wt-soft-select .p-togglebutton.p-focus,
+.wt-soft-select .p-button:focus,
+.wt-soft-select .p-button.p-focus {
+  box-shadow: none !important;
+}
+
+.wt-soft-select .p-togglebutton:focus-visible,
+.wt-soft-select .p-button:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.45) !important;
+  outline-offset: 1px;
+}
+
+.p-dark .wt-soft-select .p-togglebutton,
+.p-dark .wt-soft-select .p-button {
+  color: #a1a1aa !important;
+}
+
+.wt-soft-select .p-togglebutton.p-togglebutton-checked,
+.wt-soft-select .p-button.p-highlight,
+.wt-soft-select .p-button[aria-pressed="true"] {
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08) !important;
+}
+
+.p-dark .wt-soft-select .p-togglebutton.p-togglebutton-checked,
+.p-dark .wt-soft-select .p-button.p-highlight,
+.p-dark .wt-soft-select .p-button[aria-pressed="true"] {
+  background: #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+
+.wt-chart-type-select .p-togglebutton,
+.wt-chart-type-select .p-button {
+  min-width: 4rem;
+  justify-content: center;
+}
+
+.wt-range-select .p-togglebutton,
+.wt-range-select .p-button {
+  min-width: 3.75rem;
+  justify-content: center;
+}
+
+.wt-person-select .p-togglebutton,
+.wt-person-select .p-button {
+  min-width: 3.75rem;
+  justify-content: center;
+}
+
+.wt-admin-tabs .p-tablist,
+.wt-admin-tabs .p-tablist-tab-list {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.wt-admin-tabs .p-tablist-tab-list {
+  display: inline-flex !important;
+  gap: 0.25rem;
+  padding: 0.125rem;
+  border-radius: 0.625rem;
+  background: rgba(243, 244, 246, 0.75) !important;
+}
+
+.wt-admin-tabs .p-tab {
+  min-height: 2.75rem;
+  border: 0 !important;
+  border-radius: 0.5rem !important;
+  background: transparent !important;
+  color: #6b7280 !important;
+  padding-inline: 0.875rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  box-shadow: none !important;
+}
+
+.wt-admin-tabs .p-tab[aria-selected="true"],
+.wt-admin-tabs .p-tab.p-tab-active {
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08) !important;
+}
+
+.p-dark .wt-admin-tabs .p-tablist-tab-list {
+  background: rgba(39, 39, 42, 0.55) !important;
+}
+
+.p-dark .wt-admin-tabs .p-tab {
+  color: #a1a1aa !important;
+}
+
+.p-dark .wt-admin-tabs .p-tab[aria-selected="true"],
+.p-dark .wt-admin-tabs .p-tab.p-tab-active {
+  background: #3f3f46 !important;
+  color: #f4f4f5 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * WealthTrack Responsive Design System
+ * ───────────────────────────────────────────────────────────────────────────
+ * Touch targets:  44×44 px minimum (WCAG 2.5.5 / iOS HIG) via .wt-touch-target
+ * Page shell:     .wt-page + .wt-page-inner — safe-area-inset aware
+ * Navigation:     .wt-nav / .wt-nav-menu — safe-area padding + Escape/route close
+ * Control bars:   .wt-controls + .wt-control-strip (scrollable strip)
+ * Cards:          .wt-card (existing), .wt-metric-card, .wt-chart-card
+ * Empty/error:    .wt-empty + .wt-empty-icon
+ * Dialog sheet:   .wt-sheet-mask + .wt-sheet via Dialog pt.mask / pt.root
+ * Components:     components/ui/PageShell.vue, ControlBar.vue, EmptyState.vue
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Page shell ──────────────────────────────────────────────────────────── */
+
+/* Root page wrapper. Uses 100svh (small viewport height — stable on mobile as
+   browser chrome hides/shows) and honours iOS notch / Android safe areas. */
+.wt-page {
+  min-height: 100svh;
+}
+
+/* Full-width content column with responsive padding and safe-area awareness. */
+.wt-page-inner {
+  padding-top: 1.5rem;
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  padding-left: max(1rem, env(safe-area-inset-left));
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+@media (min-width: 640px) {
+  .wt-page-inner {
+    padding-left: max(1.5rem, env(safe-area-inset-left));
+    padding-right: max(1.5rem, env(safe-area-inset-right));
+  }
+}
+
+/* ── Navigation safe areas ───────────────────────────────────────────────── */
+
+/* .wt-nav — applied to <nav> so the bar respects device notches. */
+.wt-nav {
+  padding-left: max(1rem, env(safe-area-inset-left)) !important;
+  padding-right: max(1rem, env(safe-area-inset-right)) !important;
+}
+
+/* .wt-nav-menu — mobile dropdown; bottom padding for home-indicator bar. */
+.wt-nav-menu {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* ── Touch targets ───────────────────────────────────────────────────────── */
+
+/* Ensures 44×44 px minimum (WCAG 2.5.5). Apply to icon-only buttons and
+   any interactive control that would otherwise be smaller. */
+.wt-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Control bar ─────────────────────────────────────────────────────────── */
+
+/* .wt-controls — toolbar row that wraps gracefully on narrow screens. */
+.wt-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+/* .wt-control-strip — horizontally scrollable lane for SelectButton groups
+   that can overflow on small screens. Scrollbar is hidden visually but the
+   strip is still scrollable; the active option must remain visible on load. */
+.wt-control-strip {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+  padding-bottom: 2px; /* room for focus outline */
+}
+.wt-control-strip::-webkit-scrollbar {
+  display: none; /* Chrome / Safari */
+}
+
+.wt-scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.wt-scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Metric card ─────────────────────────────────────────────────────────── */
+
+/* KPI surface card. Mirrors .wt-card but with fixed padding for metrics. */
+.wt-metric-card {
+  background-color: var(--wt-surface);
+  border: 1px solid var(--wt-surface-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  padding: 0.75rem;
+}
+
+/* ── Chart card ──────────────────────────────────────────────────────────── */
+
+/* Card wrapper for chart canvases. */
+.wt-chart-card {
+  background-color: var(--wt-surface);
+  border: 1px solid var(--wt-surface-border);
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+  padding: 1rem;
+}
+
+/* ── Empty / error state ─────────────────────────────────────────────────── */
+
+/* Centred placeholder for empty lists, load errors, and zero-data charts. */
+.wt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 1rem;
+  text-align: center;
+  color: var(--wt-text-muted);
+  gap: 0.5rem;
+}
+
+.wt-empty-icon {
+  font-size: 2rem;
+  opacity: 0.4;
+  margin-bottom: 0.5rem;
+}
+
+/* ── Dialog mobile sheet ─────────────────────────────────────────────────── */
+
+/* Full-screen sheet layout for PrimeVue Dialog on mobile.
+ *
+ * Usage on a Dialog component:
+ *   :pt="{ mask: { class: 'wt-sheet-mask' }, root: { class: 'wt-sheet' } }"
+ *
+ * On mobile (≤640 px) the dialog fills the viewport like a native editing
+ * sheet; on desktop it stays as a centred modal.
+ */
+@media (max-width: 640px) {
+  /* Align the PrimeVue mask to the bottom of the viewport */
+  .wt-sheet-mask {
+    align-items: flex-end !important;
+  }
+
+  /* Make the dialog panel full-screen so page controls never peek through */
+  .wt-sheet {
+    width: 100% !important;
+    height: 100dvh !important;
+    max-width: 100% !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .wt-sheet .p-dialog-header {
+    flex-shrink: 0;
+  }
+
+  .wt-sheet .p-dialog-close-button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  /* Allow the content area to scroll when the form is taller than the sheet */
+  .wt-sheet .p-dialog-content {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    flex: 1 1 auto !important;
+  }
+
+  /* Footer sticks at the bottom; account for the home-indicator bar */
+  .wt-sheet .p-dialog-footer {
+    flex-shrink: 0;
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+  }
+}
+
+/* ── Form controls inside dialogs ────────────────────────────────────────── */
+
+/* Ensure PrimeVue form components meet the 44 px touch target inside dialogs.
+   Scoped to dialogs to avoid widening compact table inputs. */
+.p-dialog .p-inputtext,
+.p-dialog .p-select,
+.p-dialog .p-inputnumber .p-inputtext,
+.p-dialog input[type="month"],
+.p-dialog input[type="number"],
+.p-dialog input[type="text"] {
+  min-height: 44px;
+}
+
+/* Finance inputs are typed from the keyboard; browser stepper arrows add visual
+   noise and can accidentally change values while scrolling. */
+.wt-number-input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.wt-ghost-number-input {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.wt-number-input::-webkit-outer-spin-button,
+.wt-number-input::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.wt-month-value-input {
+  min-height: 2.25rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+  padding: 0.5rem 0.75rem;
+  text-align: right;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.wt-month-value-input:focus {
+  outline: none;
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px #34d399, 0 0 0 3px rgba(52, 211, 153, 0.18);
+}
+
+.wt-month-value-input-error {
+  box-shadow: inset 0 0 0 1px #fb7185;
+}
+
+.p-dark .wt-month-value-input {
+  background: #27272a;
+  box-shadow: inset 0 0 0 1px #3f3f46;
+}
+
+.p-dark .wt-month-value-input:focus {
+  background: #18181b;
+  box-shadow: inset 0 0 0 1px #34d399, 0 0 0 3px rgba(52, 211, 153, 0.16);
+}
+
+.p-dark .wt-month-value-input-error {
+  box-shadow: inset 0 0 0 1px #fb7185;
+}
+
+.wt-admin-table .p-datatable-table {
+  border-collapse: collapse !important;
+  width: 100%;
+  font-size: 0.875rem;
+}
+
+.wt-admin-table .p-datatable-wrapper {
+  overflow-x: auto;
+}
+
+.wt-admin-table .p-datatable-thead > tr > th {
+  border-width: 0 0 1px 0 !important;
+  border-color: #e5e7eb !important;
+  background: transparent !important;
+  color: #6b7280 !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  padding: 0.5rem 0.75rem 0.5rem 0 !important;
+}
+
+.wt-admin-table .p-datatable-tbody > tr {
+  background: transparent !important;
+  transition: background-color 150ms ease;
+}
+
+.wt-admin-table .p-datatable-tbody > tr:hover {
+  background: #f9fafb !important;
+}
+
+.wt-admin-table .p-datatable-tbody > tr > td {
+  border-width: 0 0 1px 0 !important;
+  border-color: #f3f4f6 !important;
+  padding: 0.625rem 0.75rem 0.625rem 0 !important;
+  background: transparent !important;
+}
+
+.wt-admin-table .p-datatable-thead > tr > th:first-child,
+.wt-admin-table .p-datatable-tbody > tr > td:first-child {
+  padding-left: 0 !important;
+}
+
+.wt-admin-table .p-button.p-button-text {
+  min-height: 2.25rem;
+  min-width: 2.25rem;
+  border-radius: 0.75rem;
+  color: #64748b;
+}
+
+.wt-admin-table .p-button.p-button-text:hover {
+  background: #eef2ff;
+  color: #4f46e5;
+}
+
+.wt-admin-table .p-button.p-button-danger.p-button-text:hover {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.p-dark .wt-admin-table .p-datatable-thead > tr > th {
+  border-color: #3f3f46 !important;
+  color: #a1a1aa !important;
+}
+
+.p-dark .wt-admin-table .p-datatable-tbody > tr:hover {
+  background: rgba(39, 39, 42, 0.5) !important;
+}
+
+.p-dark .wt-admin-table .p-datatable-tbody > tr > td {
+  border-color: #27272a !important;
+}
+
+.p-dark .wt-admin-table .p-button.p-button-text {
+  color: #a1a1aa;
+}
+
+.p-dark .wt-admin-table .p-button.p-button-text:hover {
+  background: rgba(79, 70, 229, 0.16);
+  color: #c7d2fe;
+}
+
+.p-dark .wt-admin-table .p-button.p-button-danger.p-button-text:hover {
+  background: rgba(225, 29, 72, 0.16);
+  color: #fda4af;
 }

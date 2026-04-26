@@ -175,6 +175,7 @@ function closeDeleteDialog() {
       :value="filteredRows"
       :sort-field="sortField"
       :sort-order="sortOrder"
+      :pt="{ table: { 'aria-label': 'Categories table' } }"
       @sort="(e) => { sortField = (e.sortField as string) ?? sortField; sortOrder = (e.sortOrder as 1 | -1) ?? sortOrder }"
       striped-rows
       size="small"
@@ -204,7 +205,7 @@ function closeDeleteDialog() {
       <Column header="Color">
         <template #body="{ data: row }">
           <div class="flex items-center gap-2">
-            <span class="inline-block w-4 h-4 rounded border border-gray-200 dark:border-zinc-700 flex-shrink-0" :style="{ backgroundColor: row.color }" />
+            <span aria-hidden="true" class="inline-block w-4 h-4 rounded border border-gray-200 dark:border-zinc-700 flex-shrink-0" :style="{ backgroundColor: row.color }" />
             <span class="text-sm font-medium text-gray-500 dark:text-zinc-400">{{ row.color }}</span>
           </div>
         </template>
@@ -212,8 +213,8 @@ function closeDeleteDialog() {
       <Column header="Actions" style="width: 8rem">
         <template #body="{ data: row }">
           <div class="flex items-center gap-2">
-            <Button icon="pi pi-pencil" text size="small" aria-label="Edit" @click="modal = { mode: 'edit', item: row }" />
-            <Button icon="pi pi-trash" text size="small" severity="danger" aria-label="Delete" @click="handleDeleteClick(row)" />
+            <Button icon="pi pi-pencil" text size="small" :aria-label="`Edit category ${row.name}`" @click="modal = { mode: 'edit', item: row }" />
+            <Button icon="pi pi-trash" text size="small" severity="danger" :aria-label="`Delete category ${row.name}`" @click="handleDeleteClick(row)" />
           </div>
         </template>
       </Column>
