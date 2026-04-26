@@ -8,6 +8,7 @@ import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
+import { useDataRefresh } from '../composables/useDataRefresh'
 
 const RANGES: { label: string; value: RangeKey }[] = [
   { label: 'YTD', value: 'ytd' }, { label: '6M',  value: '6m'  },
@@ -27,19 +28,26 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const retryCount = ref(0)
 const inventoryLoading = ref(true)
+const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
+
+async function loadReferenceData() {
+  inventoryLoading.value = true
+  try {
+    const [personList, assetList, categoryList] = await Promise.all([getPersons(), getAssets(), getCategories()])
+    persons.value = personList
+    assets.value = assetList
+    categories.value = categoryList
+    if (person.value && !personList.some(p => p.id === person.value)) person.value = null
+  } catch (err) {
+    error.value = err instanceof ApiError ? err.message : 'Unexpected error loading setup data'
+  } finally {
+    inventoryLoading.value = false
+  }
+}
 
 onMounted(() => {
   document.title = 'Dashboard — WealthTrack'
-  getPersons()
-    .then(list => { persons.value = list })
-    .catch(() => {})
-  Promise.all([getAssets(), getCategories()])
-    .then(([assetList, categoryList]) => {
-      assets.value = assetList
-      categories.value = categoryList
-    })
-    .catch(() => {})
-    .finally(() => { inventoryLoading.value = false })
+  loadReferenceData()
 })
 
 async function loadSummary() {
@@ -59,7 +67,8 @@ async function loadSummary() {
   }
 }
 
-watch([range, person, retryCount], loadSummary, { immediate: true })
+watch([range, person, retryCount, referenceDataVersion, dataPointsVersion], loadSummary, { immediate: true })
+watch(referenceDataVersion, loadReferenceData)
 
 const personOptions = computed(() => [
   { label: 'All', value: 'all' },

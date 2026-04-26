@@ -12,6 +12,7 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Checkbox from 'primevue/checkbox'
+import { useDataRefresh } from '../composables/useDataRefresh'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -42,6 +43,15 @@ interface SaveSummary {
 
 const eurFormatter = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 const assetNameSorter = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true })
+const MIN_JUMP_YEAR = 1900
+const MAX_JUMP_YEAR = 2100
+const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
+  const month = index + 1
+  return {
+    label: new Intl.DateTimeFormat(undefined, { month: 'long' }).format(new Date(2024, index, 1)),
+    value: month,
+  }
+})
 
 function formatValue(v: number | null): string {
   return v === null ? '—' : eurFormatter.format(v)
@@ -58,16 +68,19 @@ function shiftMonth(ym: string, delta: -1 | 1): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
 
-function formatMonthLabel(ym: string): string {
+function monthParts(ym: string): { year: number; month: number } {
   const [year, month] = ym.split('-').map(Number)
-  if (!year || !month) return ym
-  return new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric' })
-    .format(new Date(year, month - 1, 1))
+  return { year, month }
+}
+
+function formatYearMonth(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`
 }
 
 // ── State ──────────────────────────────────────────────────────────────────────
 
 const selectedMonth = ref(currentMonthStr())
+const selectedYearInput = ref(String(monthParts(selectedMonth.value).year))
 const assets = ref<Asset[]>([])
 const categories = ref<Category[]>([])
 const persons = ref<Person[]>([])
@@ -83,12 +96,20 @@ const error = ref<string | null>(null)
 const saving = ref(false)
 const saveError = ref<string | null>(null)
 const saveSummary = ref<SaveSummary | null>(null)
+const { referenceDataVersion, dataPointsVersion, notifyDataPointsChanged } = useDataRefresh()
 
 // ── Derived ────────────────────────────────────────────────────────────────────
 
 const categoryMap = computed(() => Object.fromEntries(categories.value.map(c => [c.id, c])))
 const personMap = computed(() => Object.fromEntries(persons.value.map(p => [p.id, p])))
-const selectedMonthLabel = computed(() => formatMonthLabel(selectedMonth.value))
+const selectedMonthNumber = computed({
+  get: () => monthParts(selectedMonth.value).month,
+  set: (month: number | null) => {
+    if (!month) return
+    const { year } = monthParts(selectedMonth.value)
+    selectedMonth.value = formatYearMonth(year, month)
+  },
+})
 
 const filteredRows = computed(() => rows.value.filter(row => {
   if (filterPersonId.value && row.personId !== filterPersonId.value) return false
@@ -127,6 +148,13 @@ async function loadMonthData(): Promise<void> {
   } finally {
     loading.value = false
   }
+}
+
+async function loadReferenceData(): Promise<void> {
+  const [ast, cats, ppl] = await Promise.all([getAssets(), getCategories(), getPersons()])
+  assets.value = ast
+  categories.value = cats
+  persons.value = ppl
 }
 
 function buildRows(currDps: DataPoint[], prevDps: DataPoint[]): void {
@@ -169,10 +197,7 @@ onMounted(async () => {
   initLoading.value = true
   error.value = null
   try {
-    const [ast, cats, ppl] = await Promise.all([getAssets(), getCategories(), getPersons()])
-    assets.value = ast
-    categories.value = cats
-    persons.value = ppl
+    await loadReferenceData()
     await loadMonthData()
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'Unexpected error loading data'
@@ -182,8 +207,24 @@ onMounted(async () => {
 })
 
 watch(selectedMonth, async () => {
+  selectedYearInput.value = String(monthParts(selectedMonth.value).year)
   if (initLoading.value) return
   saveSummary.value = null
+  await loadMonthData()
+})
+
+watch(referenceDataVersion, async () => {
+  if (initLoading.value) return
+  try {
+    await loadReferenceData()
+    await loadMonthData()
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : 'Unexpected error loading data'
+  }
+})
+
+watch(dataPointsVersion, async () => {
+  if (initLoading.value || loading.value) return
   await loadMonthData()
 })
 
@@ -191,6 +232,39 @@ watch(selectedMonth, async () => {
 
 function navigate(delta: -1 | 1): void {
   selectedMonth.value = shiftMonth(selectedMonth.value, delta)
+}
+
+function jumpToYear(year: number): void {
+  const { month } = monthParts(selectedMonth.value)
+  selectedMonth.value = formatYearMonth(year, month)
+}
+
+function handleYearInput(e: Event): void {
+  const value = (e.target as HTMLInputElement).value.trim()
+  selectedYearInput.value = value
+}
+
+function applyYearInput(): void {
+  const value = selectedYearInput.value.trim()
+  const year = Number(value)
+  if (/^\d{4}$/.test(value) && year >= MIN_JUMP_YEAR && year <= MAX_JUMP_YEAR) {
+    jumpToYear(year)
+  } else {
+    resetYearInput()
+  }
+}
+
+function resetYearInput(): void {
+  selectedYearInput.value = String(monthParts(selectedMonth.value).year)
+}
+
+function selectYearInput(e: FocusEvent): void {
+  const input = e.target as HTMLInputElement
+  input.select()
+}
+
+function jumpToCurrentMonth(): void {
+  selectedMonth.value = currentMonthStr()
 }
 
 function clearFilters(): void {
@@ -260,6 +334,7 @@ async function saveAll(): Promise<void> {
     }
 
     await loadMonthData()
+    notifyDataPointsChanged()
   } catch (e) {
     saveError.value = e instanceof ApiError ? e.message : 'Unexpected error during save'
   } finally {
@@ -278,7 +353,7 @@ async function saveAll(): Promise<void> {
       >
         History / Corrections
       </RouterLink>
-      <div class="ml-auto flex items-center gap-1">
+      <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
         <Button
           icon="pi pi-chevron-left"
           text
@@ -286,23 +361,43 @@ async function saveAll(): Promise<void> {
           aria-label="Previous month"
           @click="navigate(-1)"
         />
-        <div class="relative inline-flex h-11 min-w-[9.75rem]">
-          <input
-            v-model="selectedMonth"
-            type="month"
-            aria-label="Selected month"
-            class="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-          />
-          <div class="pointer-events-none inline-flex h-11 w-full items-center justify-center rounded-xl bg-gray-100/90 px-4 text-sm font-semibold text-gray-900 transition peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-200 dark:bg-zinc-800/80 dark:text-zinc-100 dark:peer-focus-visible:ring-emerald-500/40">
-            {{ selectedMonthLabel }}
-          </div>
-        </div>
+        <Select
+          v-model="selectedMonthNumber"
+          :options="MONTH_OPTIONS"
+          option-label="label"
+          option-value="value"
+          aria-label="Select month"
+          class="h-11 min-w-40 wt-month-select"
+        />
         <Button
           icon="pi pi-chevron-right"
           text
           class="min-h-11 min-w-11"
           aria-label="Next month"
           @click="navigate(1)"
+        />
+        <label class="inline-flex h-11 items-center gap-3 rounded-2xl bg-gray-100/80 p-1 pl-4 shadow-sm ring-1 ring-black/0 dark:bg-zinc-800/80">
+          <span class="text-sm font-semibold text-gray-500 dark:text-zinc-400">Year</span>
+          <input
+            :value="selectedYearInput"
+            type="number"
+            inputmode="numeric"
+            :min="MIN_JUMP_YEAR"
+            :max="MAX_JUMP_YEAR"
+            aria-label="Jump to year"
+            class="h-10 w-24 rounded-xl border border-gray-200 bg-white px-3 text-center text-lg font-bold tabular-nums text-gray-900 shadow-sm outline-none transition [appearance:textfield] focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            @input="handleYearInput"
+            @focus="selectYearInput"
+            @blur="applyYearInput"
+            @keydown.enter.prevent="applyYearInput"
+          />
+        </label>
+        <Button
+          label="This month"
+          text
+          severity="secondary"
+          class="min-h-11"
+          @click="jumpToCurrentMonth"
         />
       </div>
     </div>

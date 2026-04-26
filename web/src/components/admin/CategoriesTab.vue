@@ -10,6 +10,7 @@ import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Dialog from 'primevue/dialog'
 import Select from 'primevue/select'
+import { useDataRefresh } from '../../composables/useDataRefresh'
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; item: Category }
 type DeleteState =
@@ -28,6 +29,7 @@ const saveError = ref<string | null>(null)
 const deleteState = ref<DeleteState | null>(null)
 const deleting = ref(false)
 const reassignError = ref<string | null>(null)
+const { notifyReferenceDataChanged } = useDataRefresh()
 
 watch(retryCount, async () => {
   loading.value = true
@@ -52,6 +54,7 @@ async function handleSave(payload: CreateCategoryPayload | UpdateCategoryPayload
     }
     modal.value = null
     retryCount.value++
+    notifyReferenceDataChanged()
   } catch (e) {
     saveError.value = e instanceof ApiError ? e.message : 'Unexpected error'
   } finally {
@@ -71,6 +74,7 @@ async function handleConfirm() {
     if (result.ok) {
       deleteState.value = null
       retryCount.value++
+      notifyReferenceDataChanged()
     } else if (!result.ok && result.needs_reassign) {
       const others = rows.value.filter(c => c.id !== deleteState.value!.id)
       deleteState.value = {
@@ -97,6 +101,7 @@ async function handleReassignConfirm() {
     await deleteCategory(deleteState.value.id, deleteState.value.reassignTo)
     deleteState.value = null
     retryCount.value++
+    notifyReferenceDataChanged()
   } finally {
     deleting.value = false
   }

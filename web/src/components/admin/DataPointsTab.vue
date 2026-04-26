@@ -13,6 +13,7 @@ import Select from 'primevue/select'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import { useConfirm } from 'primevue/useconfirm'
+import { useDataRefresh } from '../../composables/useDataRefresh'
 
 const confirm = useConfirm()
 
@@ -37,6 +38,7 @@ const totalCount = ref(0)
 const modal = ref<ModalState | null>(null)
 const saving = ref(false)
 const saveError = ref<string | null>(null)
+const { referenceDataVersion, dataPointsVersion, notifyDataPointsChanged } = useDataRefresh()
 
 const filterPersonId = ref<string | null>(null)
 const filterAssetId = ref<string | null>(null)
@@ -90,17 +92,21 @@ function formatCreatedAt(iso: string) {
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 
-// Load assets/categories/persons once on mount (they don't change from this tab)
-onMounted(async () => {
+async function loadReferenceData() {
   try {
     const [ast, cats, ppl] = await Promise.all([getAssets(), getCategories(), getPersons()])
     assets.value = ast
     categories.value = cats
     persons.value = ppl
+    if (filterPersonId.value && !ppl.some(p => p.id === filterPersonId.value)) filterPersonId.value = null
+    if (filterCategoryId.value && !cats.some(c => c.id === filterCategoryId.value)) filterCategoryId.value = null
+    if (filterAssetId.value && !ast.some(a => a.id === filterAssetId.value)) filterAssetId.value = null
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'Unexpected error'
   }
-})
+}
+
+onMounted(loadReferenceData)
 
 async function loadDataPoints() {
   loading.value = true
@@ -131,6 +137,12 @@ async function loadDataPoints() {
 
 // Reload current page when dataRetryCount changes (after CRUD)
 watch(dataRetryCount, loadDataPoints, { immediate: true })
+watch(referenceDataVersion, async () => {
+  await loadReferenceData()
+  page.value = 0
+  await loadDataPoints()
+})
+watch(dataPointsVersion, loadDataPoints)
 
 // ── Pagination ────────────────────────────────────────────────────────────────
 
@@ -175,12 +187,14 @@ async function handleSave(payload: CreateDataPointPayload | UpdateDataPointPaylo
   }
   if (success) {
     modal.value = null
+    notifyDataPointsChanged()
     loadDataPoints()
   }
 }
 
 async function handleDelete(id: string) {
   await deleteDataPoint(id)
+  notifyDataPointsChanged()
   loadDataPoints()
 }
 

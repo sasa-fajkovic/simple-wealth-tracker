@@ -33,6 +33,7 @@ import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
 import { useTheme } from '../composables/useTheme'
+import { useDataRefresh } from '../composables/useDataRefresh'
 import { getChartTokens, buildTooltipDefaults, wealthColors } from '../theme/tokens'
 import { eurFmt, compactFmt } from '../utils/formatters'
 
@@ -137,14 +138,22 @@ const error = ref<string | null>(null)
 const personsError = ref<string | null>(null)
 const retryCount = ref(0)
 const { theme } = useTheme()
+const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
+
+async function loadPersons() {
+  try {
+    const list = await getPersons()
+    persons.value = list
+    if (person.value && !list.some(p => p.id === person.value)) person.value = null
+    personsError.value = null
+  } catch (err) {
+    personsError.value = err instanceof ApiError ? err.message : 'Could not load person filter'
+  }
+}
 
 onMounted(() => {
   document.title = 'Analytics — WealthTrack'
-  getPersons()
-    .then(list => { persons.value = list })
-    .catch(err => {
-      personsError.value = err instanceof ApiError ? err.message : 'Could not load person filter'
-    })
+  loadPersons()
 })
 
 async function loadData() {
@@ -159,7 +168,8 @@ async function loadData() {
   }
 }
 
-watch([range, person, retryCount], loadData, { immediate: true })
+watch([range, person, retryCount, referenceDataVersion, dataPointsVersion], loadData, { immediate: true })
+watch(referenceDataVersion, loadPersons)
 
 const personOptions = computed(() => [
   { label: 'All', value: 'all' },

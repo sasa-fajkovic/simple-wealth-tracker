@@ -9,6 +9,7 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Dialog from 'primevue/dialog'
+import { useDataRefresh } from '../../composables/useDataRefresh'
 
 type ModalState = { mode: 'create' } | { mode: 'edit'; item: Asset }
 type DeleteState =
@@ -38,6 +39,7 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 const deleteState = ref<DeleteState | null>(null)
 const deleting = ref(false)
+const { referenceDataVersion, notifyReferenceDataChanged } = useDataRefresh()
 
 watch(retryCount, async () => {
   loading.value = true
@@ -53,6 +55,10 @@ watch(retryCount, async () => {
     loading.value = false
   }
 }, { immediate: true })
+
+watch(referenceDataVersion, () => {
+  retryCount.value++
+})
 
 const categoryMap = computed(() => Object.fromEntries(categories.value.map(c => [c.id, c])))
 const personMap = computed(() => Object.fromEntries(persons.value.map(p => [p.id, p])))
@@ -90,6 +96,7 @@ async function handleSave(payload: CreateAssetPayload | UpdateAssetPayload) {
     }
     modal.value = null
     retryCount.value++
+    notifyReferenceDataChanged()
   } catch (e) {
     saveError.value = e instanceof ApiError ? e.message : 'Unexpected error'
   } finally {
@@ -113,6 +120,7 @@ async function handleConfirm() {
     if (result.ok) {
       deleteState.value = null
       retryCount.value++
+      notifyReferenceDataChanged()
     } else if (!result.ok && result.needs_confirm) {
       deleteState.value = {
         phase: 'force',
@@ -133,6 +141,7 @@ async function handleForceConfirm() {
     await deleteAsset(deleteState.value.id, true)
     deleteState.value = null
     retryCount.value++
+    notifyReferenceDataChanged()
   } finally {
     deleting.value = false
   }

@@ -9,6 +9,7 @@ import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
 import { useChartType } from '../composables/useChartType'
+import { useDataRefresh } from '../composables/useDataRefresh'
 
 const RANGES: { label: string; value: RangeKey }[] = [
   { label: 'YTD', value: 'ytd' }, { label: '6M',  value: '6m'  },
@@ -25,12 +26,23 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const retryCount = ref(0)
 const { chartType, setChartType } = useChartType('cashinflow-chart-type-v2', 'trend')
+const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
 
 const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 
+async function loadPersons() {
+  try {
+    const list = await getPersons()
+    persons.value = list
+    if (person.value && !list.some(p => p.id === person.value)) person.value = null
+  } catch (err) {
+    error.value = err instanceof ApiError ? err.message : 'Unexpected error loading people'
+  }
+}
+
 onMounted(() => {
   document.title = 'Cash Inflow — WealthTrack'
-  getPersons().then(list => { persons.value = list }).catch(() => {})
+  loadPersons()
 })
 
 async function loadSummary() {
@@ -45,7 +57,8 @@ async function loadSummary() {
   }
 }
 
-watch([range, person, retryCount], loadSummary, { immediate: true })
+watch([range, person, retryCount, referenceDataVersion, dataPointsVersion], loadSummary, { immediate: true })
+watch(referenceDataVersion, loadPersons)
 
 const personOptions = computed(() => [
   { label: 'All', value: 'all' },

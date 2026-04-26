@@ -8,6 +8,7 @@ import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
 import { AreaChart, LineChart, BarChart2, ChevronDown, ChevronUp } from 'lucide-vue-next'
+import { useDataRefresh } from '../composables/useDataRefresh'
 
 // ── Horizon ───────────────────────────────────────────────────────────────────
 const HORIZONS = [
@@ -61,6 +62,7 @@ const data      = ref<ProjectionsResponse | null>(null)
 const loading   = ref(true)
 const error     = ref<string | null>(null)
 const retryCount = ref(0)
+const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
 
 // ── Assumptions data ──────────────────────────────────────────────────────────
 const categories = ref<Category[]>([])
@@ -68,8 +70,8 @@ const assets     = ref<Asset[]>([])
 const assumptionsLoading = ref(false)
 const assumptionsError = ref<string | null>(null)
 
-async function loadAssumptions() {
-  if (categories.value.length > 0) return
+async function loadAssumptions(force = false) {
+  if (!force && categories.value.length > 0) return
   assumptionsLoading.value = true
   assumptionsError.value = null
   try {
@@ -166,7 +168,8 @@ async function loadProjections() {
   }
 }
 
-watch([horizon, scenario, retryCount], loadProjections, { immediate: true })
+watch([horizon, scenario, retryCount, referenceDataVersion, dataPointsVersion], loadProjections, { immediate: true })
+watch(referenceDataVersion, () => loadAssumptions(true))
 
 // ── Projection anchor helpers ─────────────────────────────────────────────────
 const todayYM = computed(() => {

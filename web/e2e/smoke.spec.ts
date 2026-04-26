@@ -18,6 +18,19 @@ function rowContaining(page: import('@playwright/test').Page, text: string) {
   return page.locator('tbody tr').filter({ hasText: text }).first()
 }
 
+const MONTH_LABELS = Array.from({ length: 12 }, (_, index) =>
+  new Intl.DateTimeFormat(undefined, { month: 'long' }).format(new Date(2024, index, 1)),
+)
+
+async function setMonthlyUpdatePeriod(page: import('@playwright/test').Page, yearMonth: string) {
+  const [year, month] = yearMonth.split('-')
+  const yearInput = page.getByRole('spinbutton', { name: 'Jump to year' })
+  await yearInput.fill(year)
+  await yearInput.press('Enter')
+  await page.getByRole('combobox', { name: 'Select month' }).click()
+  await page.getByRole('option', { name: MONTH_LABELS[Number(month) - 1], exact: true }).click()
+}
+
 test.describe('Dashboard', () => {
   test('loads page title and chart controls', async ({ page }) => {
     await page.goto('/')
@@ -87,10 +100,10 @@ test.describe('Admin page', () => {
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText(personName)).toBeVisible()
 
-    await page.reload()
     await page.getByRole('tab', { name: 'Assets' }).click()
     await page.getByRole('button', { name: 'Add Asset' }).click()
     await page.getByRole('textbox').first().fill(assetName)
+    await expect(page.getByRole('dialog')).toContainText(personName)
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText(assetName)).toBeVisible()
   })
@@ -140,9 +153,23 @@ test.describe('Monthly Update page', () => {
     await page.goto('/monthly-update')
     await expect(page).toHaveTitle(/Monthly Update/)
     await expect(page.getByRole('heading', { name: 'Monthly Update' })).toHaveCount(0)
-    await expect(page.locator('input[type="month"]')).toBeVisible()
+    await expect(page.getByRole('combobox', { name: 'Select month' })).toBeVisible()
+    await expect(page.getByRole('spinbutton', { name: 'Jump to year' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Monthly Update' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'History / Corrections' })).toBeVisible()
+  })
+
+  test('can jump directly to old years without month-by-month navigation', async ({ page }) => {
+    await page.goto('/monthly-update')
+
+    const yearInput = page.getByRole('spinbutton', { name: 'Jump to year' })
+    await yearInput.fill('2010')
+    await yearInput.press('Enter')
+    await expect(yearInput).toHaveValue('2010')
+
+    await page.getByRole('combobox', { name: 'Select month' }).click()
+    await page.getByRole('option', { name: 'January', exact: true }).click()
+    await expect(page.getByRole('combobox', { name: 'Select month' })).toContainText('January')
   })
 
   test('shows asset rows and allows entering values', async ({ page, request }) => {
@@ -204,7 +231,7 @@ test.describe('Monthly Update page', () => {
     })
 
     await page.goto('/monthly-update')
-    await page.locator('input[type="month"]').fill('2026-05')
+    await setMonthlyUpdatePeriod(page, '2026-05')
     await expect(page.getByRole('cell', { name: assetName, exact: false })).toBeVisible()
 
     const input = page.locator('table').getByRole('spinbutton', { name: new RegExp(`Value for ${assetName}`) })
@@ -240,7 +267,7 @@ test.describe('Monthly Update page', () => {
     })
 
     await page.goto('/monthly-update')
-    await page.locator('input[type="month"]').fill('2026-02')
+    await setMonthlyUpdatePeriod(page, '2026-02')
     await expect(page.getByRole('cell', { name: assetName, exact: false })).toBeVisible()
 
     // Before copy: input should be empty
@@ -269,7 +296,7 @@ test.describe('Monthly Update page', () => {
     })
 
     await page.goto('/monthly-update')
-    await page.locator('input[type="month"]').fill('2026-06')
+    await setMonthlyUpdatePeriod(page, '2026-06')
     await expect(page.getByRole('cell', { name: assetName, exact: false })).toBeVisible()
 
     const input = page.locator('table').getByRole('spinbutton', { name: new RegExp(`Value for ${assetName}`) })

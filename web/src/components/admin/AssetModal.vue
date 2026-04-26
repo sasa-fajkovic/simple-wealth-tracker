@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import type { Asset, Category, Person, CreateAssetPayload, UpdateAssetPayload } from '../../types/index'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
@@ -36,6 +36,18 @@ const validationError = ref<string | null>(null)
 
 const slugPreview = computed(() => props.mode === 'create' ? toSlug(name.value) : props.item!.id)
 const personOptions = computed(() => props.persons ?? [])
+
+watch(() => props.categories, (list) => {
+  if (props.mode === 'create' && !categoryId.value && list[0]) {
+    categoryId.value = list[0].id
+  }
+})
+
+watch(() => props.persons, (list) => {
+  if (props.mode === 'create' && !personId.value && list?.[0]) {
+    personId.value = list[0].id
+  }
+})
 
 function handleSubmit() {
   if (!name.value.trim()) {

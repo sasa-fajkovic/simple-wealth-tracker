@@ -273,6 +273,37 @@ a {
   justify-content: center;
 }
 
+.wt-month-select {
+  --p-select-border-color: transparent;
+  --p-select-hover-border-color: transparent;
+  --p-select-focus-border-color: transparent;
+  --p-select-shadow: none;
+  --p-select-focus-ring-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18);
+}
+
+.wt-month-select.p-select {
+  border: 0 !important;
+  border-radius: 0.75rem !important;
+  background: rgba(243, 244, 246, 0.9) !important;
+  box-shadow: none !important;
+}
+
+.p-dark .wt-month-select.p-select {
+  background: rgba(39, 39, 42, 0.8) !important;
+}
+
+.wt-month-select .p-select-label {
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  color: #111827;
+  padding-inline: 1rem 0.5rem !important;
+}
+
+.p-dark .wt-month-select .p-select-label {
+  color: #f4f4f5;
+}
+
 .wt-person-select .p-togglebutton,
 .wt-person-select .p-button {
   min-width: 3.75rem;
