@@ -477,7 +477,7 @@ test.describe('Projections page', () => {
     await expect(targetYear).toHaveValue(String(anchorYear + 12))
   })
 
-  test('scenario API param: conservative scenario loads without error', async ({ page, request }) => {
+  test('scenario API param: conservative scenario loads without error', async ({ request }) => {
     const res = await request.get('/api/v1/projections?years=5&scenario=conservative')
     expect(res.ok()).toBeTruthy()
     const body = await res.json()
