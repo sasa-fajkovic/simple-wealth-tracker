@@ -3,18 +3,11 @@ import { HTTPException } from 'hono/http-exception'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDb, mutateDb } from '../storage/index.js'
-import { categoryType as getCategoryType } from '../models/index.js'
 import type { Category } from '../models/index.js'
+import { toSlug } from '../util/slug.js'
+import { zodErrorHook as hook } from '../util/zodHook.js'
 
 const router = new Hono()
-
-// MANDATORY: pass hook as 3rd arg — default returns { success: false, error: ZodIssue[] }
-// which does NOT match the required {"error":"..."} API contract (API-01).
-const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
-  if (!result.success && result.error) {
-    return c.json({ error: result.error.issues[0]?.message ?? 'Invalid request' }, 400 as const)
-  }
-}
 
 const baseSchema = z.object({
   name: z.string().min(1, 'name is required'),
@@ -31,19 +24,12 @@ const createSchema = baseSchema.refine(liabilityGrowthCheck, liabilityGrowthMsg)
 // id is optional here only to detect change attempts in PUT — not required on create
 const updateSchema = baseSchema.extend({ id: z.string().optional() }).refine(liabilityGrowthCheck, liabilityGrowthMsg)
 
-// MODEL-01: id is a URL-safe slug derived from name
-function toSlug(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-}
-
-// CAT-01: GET all categories — normalise old records that only have track_only
+// CAT-01: GET all categories. The bootstrap migration backfills `type` on
+// pre-v2 records, so by the time requests are served every category is
+// guaranteed to carry the discriminant.
 router.get('/', async (c) => {
   const db = await readDb()
-  const categories = db.categories.map(cat => ({
-    ...cat,
-    type: getCategoryType(cat),
-  } as Category))
-  return c.json(categories)
+  return c.json(db.categories)
 })
 
 // CAT-02: POST — validate, generate slug id, persist

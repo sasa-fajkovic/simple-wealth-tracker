@@ -68,10 +68,7 @@ const personMap = computed(() => Object.fromEntries(persons.value.map(p => [p.id
 
 // Only categories matching the current tab type
 const filteredCategories = computed(() =>
-  categories.value.filter(c => {
-    const t = c.type ?? (c.track_only ? 'cash-inflow' : 'asset')
-    return t === props.categoryType
-  })
+  categories.value.filter(c => c.type === props.categoryType),
 )
 const filteredCategoryIds = computed(() => new Set(filteredCategories.value.map(c => c.id)))
 

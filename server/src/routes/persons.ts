@@ -4,25 +4,16 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDb, mutateDb } from '../storage/index.js'
 import type { Person } from '../models/index.js'
+import { toSlug } from '../util/slug.js'
+import { zodErrorHook as hook } from '../util/zodHook.js'
 
 const router = new Hono()
-
-const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
-  if (!result.success && result.error) {
-    return c.json({ error: result.error.issues[0]?.message ?? 'Invalid request' }, 400 as const)
-  }
-}
 
 const createSchema = z.object({
   name: z.string().min(1, 'name is required'),
 })
 
 const updateSchema = createSchema.extend({ id: z.string().optional() })
-
-// toSlug at module scope — not inside handlers
-function toSlug(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-}
 
 // GET /api/v1/persons
 router.get('/', async (c) => {

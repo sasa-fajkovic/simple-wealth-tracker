@@ -28,6 +28,10 @@ COPY --from=server-build /server/dist ./dist
 # Built web assets served by Hono serveStatic
 COPY --from=web /web/dist ./web/dist
 
+# Persistent data lives in /data — mount as a Docker volume.
+# Pre-create with the non-root `node` user owning it so writes succeed.
+RUN mkdir -p /data && chown -R node:node /data /app
+
 # Persistent data lives in /data — mount as a Docker volume
 ENV DATA_FILE=/data/database.yaml
 ENV DATA_POINTS_FILE=/data/datapoints.csv
@@ -37,5 +41,8 @@ ENV PORT=8080
 
 VOLUME ["/data"]
 EXPOSE 8080
+
+# Drop root — node:20-alpine ships a non-root `node` user (uid 1000).
+USER node
 
 CMD ["node", "dist/index.js"]

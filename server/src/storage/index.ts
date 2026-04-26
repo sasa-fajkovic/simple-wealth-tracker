@@ -19,10 +19,12 @@ async function _readYaml(): Promise<Database> {
   try {
     return parse(raw) as Database
   } catch (err) {
-    console.error(
-      `Error: Failed to parse database at ${DB_PATH}: ${(err as Error).message}`
-    )
-    process.exit(1)
+    // STOR-01: parse-failure at request time (post-boot) shouldn't kill the
+    // server — bootstrap.ts already validates the YAML on startup, so reaching
+    // this branch means the file was corrupted while we were running. Throw so
+    // the request fails with a 500 and the audit log captures it; let the
+    // operator decide whether to restart.
+    throw new Error(`Failed to parse database at ${DB_PATH}: ${(err as Error).message}`)
   }
 }
 

@@ -86,7 +86,7 @@ async function openCreateDialog() {
           </div>
           <div class="flex flex-wrap justify-end gap-2 lg:ml-auto lg:flex-nowrap">
             <RouterLink
-              to="/history"
+              to="/data-points"
               class="wt-soft-link"
             >
               History / Corrections

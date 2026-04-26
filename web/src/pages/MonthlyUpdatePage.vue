@@ -173,8 +173,7 @@ function buildRows(currDps: DataPoint[], prevDps: DataPoint[]): void {
   rows.value = assets.value
     .map(asset => {
       const cat = categoryMap.value[asset.category_id] as Category | undefined
-      const catType: 'asset' | 'cash-inflow' | 'liability' =
-        cat?.type ?? (cat?.track_only ? 'cash-inflow' : 'asset')
+      const catType: 'asset' | 'cash-inflow' | 'liability' = cat?.type ?? 'asset'
       const person = personMap.value[asset.person_id] as Person | undefined
       const currDp = currIndex.get(asset.id)
       const prevDp = prevIndex.get(asset.id)
@@ -364,7 +363,7 @@ async function saveAll(): Promise<void> {
     <!-- ── Header ──────────────────────────────────────────────────────────── -->
     <div class="flex flex-wrap items-center gap-3 mb-6">
       <RouterLink
-        to="/history"
+        to="/data-points"
         class="wt-soft-link"
       >
         History / Corrections

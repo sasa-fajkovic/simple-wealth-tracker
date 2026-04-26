@@ -5,9 +5,17 @@ import writeFileAtomic from 'write-file-atomic'
 import { DB_PATH, CSV_PATH } from './storage/index.js'
 import { encodeDataPoints } from './storage/csv.js'
 import { SEED_CATEGORIES } from './models/seed.js'
-import type { Database } from './models/index.js'
-import { categoryType } from './models/index.js'
+import type { Database, Category, DataPoint } from './models/index.js'
 import { auditLog } from './audit/index.js'
+
+// Pre-v2 shape used during migration only. The runtime YAML may still contain
+// `track_only` and an inline `dataPoints` array on installations older than v2;
+// these are rewritten to the canonical Database shape on first boot.
+type LegacyCategory = Category & { track_only?: boolean }
+type LegacyDatabase = Omit<Database, 'categories'> & {
+  categories: LegacyCategory[]
+  dataPoints?: DataPoint[]
+}
 
 export async function bootstrapDatabase(): Promise<void> {
   // Check if the database file already exists
@@ -42,7 +50,7 @@ export async function bootstrapDatabase(): Promise<void> {
     parse(raw)
   } catch (err) {
     console.error(
-      `Error: Failed to parse database at ${DB_PATH}: ${(err as Error).message}`
+      `Error: Failed to parse database at ${DB_PATH}: ${(err as Error).message}`,
     )
     process.exit(1)
   }
@@ -51,7 +59,7 @@ export async function bootstrapDatabase(): Promise<void> {
   // If YAML still has dataPoints, YAML is authoritative — overwrite CSV from YAML, then strip.
   // Recovery: if a previous boot crashed between writing CSV and stripping YAML, YAML still has
   // dataPoints, so we overwrite CSV again (safe: YAML is always the authoritative source here).
-  let current = parse(raw) as Database
+  let current = parse(raw) as LegacyDatabase
   if (current.dataPoints !== undefined) {
     const { dataPoints, ...withoutDataPoints } = current
     if (dataPoints.length > 0) {
@@ -72,11 +80,15 @@ export async function bootstrapDatabase(): Promise<void> {
   // `track_only`. Idempotent — skipped when all categories already have `type`.
   const needsMigration = current.categories?.some(cat => cat.type === undefined) ?? false
   if (needsMigration) {
-    const migrated = current.categories.map(cat => ({
-      ...cat,
-      type: categoryType(cat),
-    }))
+    const migrated: Category[] = current.categories.map(cat => {
+      const { track_only, ...rest } = cat
+      return {
+        ...rest,
+        type: cat.type ?? (track_only ? 'cash-inflow' : 'asset'),
+      }
+    })
     const updated: Database = { ...current, categories: migrated }
+    delete (updated as { dataPoints?: unknown }).dataPoints
     await writeFileAtomic(DB_PATH, stringify(updated, { lineWidth: 0 }))
     const count = current.categories.filter(cat => cat.type === undefined).length
     console.log(`Backfilled category type on ${count} old record(s) in ${DB_PATH}`)

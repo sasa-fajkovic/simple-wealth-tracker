@@ -7,17 +7,8 @@ export interface Category {
   projected_yearly_growth: number  // decimal, e.g. 0.08 = 8% annual growth
   color: string                    // hex color, e.g. '#6366f1'
   type: 'asset' | 'cash-inflow' | 'liability'
-  /** @deprecated Use `type`. Present on pre-v2 records only; derived at read time. */
-  track_only?: boolean
 }
 
-/**
- * Resolve the category type, falling back to the deprecated `track_only` flag
- * for records written before the `type` field existed.
- */
-export function categoryType(cat: Pick<Category, 'type' | 'track_only'>): 'asset' | 'cash-inflow' | 'liability' {
-  return cat.type ?? (cat.track_only ? 'cash-inflow' : 'asset')
-}
 export interface Person {
   id: string    // URL-safe slug, immutable after create
   name: string
@@ -50,7 +41,4 @@ export interface Database {
   categories: Category[]
   assets: Asset[]
   persons: Person[]
-  // deprecated: populated only in pre-migration databases.
-  // On first boot, bootstrap migrates these to datapoints.csv and strips this field.
-  dataPoints?: DataPoint[]
 }

@@ -53,7 +53,7 @@ test.describe('Dashboard', () => {
 
 test.describe('Data Points page', () => {
   test('History route renders the corrections surface', async ({ page }) => {
-    await page.goto('/history')
+    await page.goto('/data-points')
     await expect(page).toHaveTitle(/History \/ Corrections/)
     await expect(page.getByRole('heading', { name: 'History / Corrections' })).toBeVisible()
   })

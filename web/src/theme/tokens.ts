@@ -37,27 +37,6 @@ export const wealthColors = {
   },
 } as const
 
-export const surfaceTokens = {
-  light: {
-    bg: '#f9fafb',
-    card: '#ffffff',
-    border: '#e5e7eb',
-    cardBorder: '#e5e7eb',
-    textPrimary: '#111827',
-    textSecondary: '#374151',
-    textMuted: '#6b7280',
-  },
-  dark: {
-    bg: '#09090b',
-    card: '#18181b',
-    border: '#3f3f46',
-    cardBorder: '#3f3f46',
-    textPrimary: '#f4f4f5',
-    textSecondary: '#a1a1aa',
-    textMuted: '#71717a',
-  },
-} as const
-
 export function getChartTokens(dark: boolean): ChartTokens {
   return dark
     ? {
@@ -106,31 +85,5 @@ export function buildTooltipDefaults(t: ChartTokens): Record<string, unknown> {
     boxWidth: 10,
     boxHeight: 10,
     boxPadding: 4,
-  }
-}
-
-export function buildAxisDefaults(
-  t: ChartTokens,
-  compact: Intl.NumberFormat,
-): Record<string, unknown> {
-  return {
-    x: {
-      grid: { color: t.grid },
-      border: { display: false },
-      ticks: {
-        color: t.tick,
-        font: { size: 11 },
-        maxRotation: 0,
-      },
-    },
-    y: {
-      grid: { color: t.grid },
-      border: { display: false },
-      ticks: {
-        color: t.tick,
-        font: { size: 11 },
-        callback: (value: string | number) => compact.format(value as number),
-      },
-    },
   }
 }

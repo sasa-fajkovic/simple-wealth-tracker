@@ -3,10 +3,11 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDbAndDataPoints } from '../storage/index.js'
-import { categoryType as getCategoryType } from '../models/index.js'
-import { toMonthKey, monthRange } from '../calc/utils.js'
+import { monthRange } from '../calc/utils.js'
 import { getRangeBounds } from '../calc/ranges.js'
 import { locfFill, aggregateSummary } from '../calc/summary.js'
+import { deriveMonthBounds } from '../util/monthBounds.js'
+import { zodErrorHook as hook } from '../util/zodHook.js'
 
 const router = new Hono()
 
@@ -15,15 +16,8 @@ const rangeValues = ['ytd', '6m', '1y', '2y', '3y', '5y', '10y', 'max'] as const
 const querySchema = z.object({
   range: z.enum(rangeValues).default('1y'),
   person: z.string().optional(),
-  tracking: z.string().optional(),  // 'true' = cash-inflow view (track_only categories only)
+  tracking: z.string().optional(),  // 'true' = cash-inflow view (cash-inflow categories only)
 })
-
-// Same hook pattern as dataPoints.ts — returns {"error":"..."} on validation failure (API-01)
-const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
-  if (!result.success && result.error) {
-    return c.json({ error: result.error.issues[0]?.message ?? 'Invalid range' }, 400 as const)
-  }
-}
 
 router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const { range, person, tracking } = c.req.valid('query')
@@ -31,10 +25,9 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const { db, dataPoints } = await readDbAndDataPoints()
 
   // Filter categories by tracking mode: wealth view shows asset+liability; cash-inflow view shows only cash-inflow
-  const relevantCategories = db.categories.filter(cat => {
-    const t = getCategoryType(cat)
-    return trackingMode ? t === 'cash-inflow' : t !== 'cash-inflow'
-  })
+  const relevantCategories = db.categories.filter(cat =>
+    trackingMode ? cat.type === 'cash-inflow' : cat.type !== 'cash-inflow',
+  )
   const relevantCategoryIds = new Set(relevantCategories.map(cat => cat.id))
 
   // Filter assets by category, then optionally by person
@@ -45,22 +38,7 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const filteredAssetIds = new Set(filteredAssets.map(a => a.id))
   const relevantDPs = dataPoints.filter(dp => filteredAssetIds.has(dp.asset_id))
 
-  const now = new Date()
-  const currentMonth = toMonthKey(now.getFullYear(), now.getMonth() + 1)
-
-  const latestMonth = relevantDPs.length === 0
-    ? currentMonth
-    : relevantDPs.reduce((best, dp) =>
-        dp.year_month > best ? dp.year_month : best,
-        relevantDPs[0].year_month
-      )
-
-  const earliestMonth = relevantDPs.length === 0
-    ? currentMonth
-    : relevantDPs.reduce((best, dp) =>
-        dp.year_month < best ? dp.year_month : best,
-        relevantDPs[0].year_month
-      )
+  const { latestMonth, earliestMonth, currentMonth } = deriveMonthBounds(relevantDPs)
 
   const { startYM, endYM } = getRangeBounds(range, latestMonth, earliestMonth, currentMonth)
   const months = monthRange(startYM, endYM)

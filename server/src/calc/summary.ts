@@ -1,6 +1,5 @@
 // server/src/calc/summary.ts
 import type { DataPoint, Asset, Category } from '../models/index.js'
-import { categoryType } from '../models/index.js'
 
 /**
  * Last Observation Carried Forward (LOCF) gap-fill.
@@ -151,7 +150,7 @@ export function aggregateSummary(
         return sum + (assetMap?.get(month) ?? 0)
       }, 0)
     })
-    return { category_id: cat.id, category_name: cat.name, color: cat.color, category_type: categoryType(cat), values }
+    return { category_id: cat.id, category_name: cat.name, color: cat.color, category_type: cat.type, values }
   })
 
   const asset_series = assets.map(asset => {
@@ -163,7 +162,7 @@ export function aggregateSummary(
       category_id: asset.category_id,
       category_name: cat?.name ?? asset.category_id,
       color: cat?.color ?? '#64748b',
-      category_type: cat ? categoryType(cat) : 'asset',
+      category_type: cat?.type ?? 'asset',
       person_id: asset.person_id,
       values,
     }
@@ -199,7 +198,7 @@ export function aggregateSummary(
     const s = series.find(x => x.category_id === cat.id)!
     const value = s.values.length > 0 ? s.values[s.values.length - 1] : 0
     const pct_of_total = currentTotal === 0 ? 0 : (value / currentTotal) * 100
-    return { category_id: cat.id, category_name: cat.name, color: cat.color, category_type: categoryType(cat), value, pct_of_total }
+    return { category_id: cat.id, category_name: cat.name, color: cat.color, category_type: cat.type, value, pct_of_total }
   })
 
   const asset_breakdown = asset_series.map(s => {

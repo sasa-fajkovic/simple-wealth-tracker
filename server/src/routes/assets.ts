@@ -4,15 +4,10 @@ import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDb, readDbAndDataPoints, mutateDb, mutateDbAndDataPoints } from '../storage/index.js'
 import type { Asset } from '../models/index.js'
+import { toSlug } from '../util/slug.js'
+import { zodErrorHook as hook } from '../util/zodHook.js'
 
 const router = new Hono()
-
-// MANDATORY hook — returns {"error":"..."} on failure (API-01 compliance)
-const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
-  if (!result.success && result.error) {
-    return c.json({ error: result.error.issues[0]?.message ?? 'Invalid request' }, 400 as const)
-  }
-}
 
 const createSchema = z.object({
   name: z.string().min(1, 'name is required'),
@@ -25,11 +20,6 @@ const createSchema = z.object({
 
 // id optional only to detect change attempts in PUT
 const updateSchema = createSchema.extend({ id: z.string().optional() })
-
-// MODEL-02: id is a URL-safe slug derived from name
-function toSlug(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
-}
 
 // ASSET-01: GET all assets
 router.get('/', async (c) => {

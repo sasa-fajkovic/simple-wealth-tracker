@@ -3,11 +3,12 @@ import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { readDbAndDataPoints } from '../storage/index.js'
-import { categoryType as getCategoryType } from '../models/index.js'
-import { toMonthKey, monthRange } from '../calc/utils.js'
+import { monthRange } from '../calc/utils.js'
 import { getRangeBounds } from '../calc/ranges.js'
 import { locfFill, aggregateSummary } from '../calc/summary.js'
 import { buildProjection } from '../calc/projections.js'
+import { deriveMonthBounds } from '../util/monthBounds.js'
+import { zodErrorHook as hook } from '../util/zodHook.js'
 
 const router = new Hono()
 
@@ -20,13 +21,6 @@ const querySchema = z.object({
   scenario: z.enum(['conservative', 'base', 'aggressive']).default('base'),
 })
 
-// Same hook pattern as all other routes — returns {"error":"..."} on validation failure (API-01)
-const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
-  if (!result.success && result.error) {
-    return c.json({ error: result.error.issues[0]?.message ?? 'Invalid years' }, 400 as const)
-  }
-}
-
 router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const { years, scenario } = c.req.valid('query')
   // PROJ-SC: scenario → rate multiplier. base preserves existing behaviour exactly.
@@ -34,34 +28,14 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const { db, dataPoints } = await readDbAndDataPoints()
 
   // Exclude cash-inflow-only categories from projections (same as net-worth chart)
-  const wealthCategories = db.categories.filter(c => {
-    const t = getCategoryType(c)
-    return t !== 'cash-inflow'
-  })
+  const wealthCategories = db.categories.filter(c => c.type !== 'cash-inflow')
   const wealthAssetIds = new Set(
-    db.assets.filter(a => wealthCategories.some(c => c.id === a.category_id)).map(a => a.id)
+    db.assets.filter(a => wealthCategories.some(c => c.id === a.category_id)).map(a => a.id),
   )
   const wealthAssets = db.assets.filter(a => wealthAssetIds.has(a.id))
   const wealthDataPoints = dataPoints.filter(dp => wealthAssetIds.has(dp.asset_id))
 
-  // Derive latestMonth and earliestMonth from wealth-only data points
-  // toMonthKey with integer parts: NEVER toISOString().slice(0,7) — UTC shift for UTC+ users
-  const now = new Date()
-  const currentMonth = toMonthKey(now.getFullYear(), now.getMonth() + 1)
-
-  const latestMonth = wealthDataPoints.length === 0
-    ? currentMonth
-    : wealthDataPoints.reduce((best, dp) =>
-        dp.year_month > best ? dp.year_month : best,
-        wealthDataPoints[0].year_month
-      )
-
-  const earliestMonth = wealthDataPoints.length === 0
-    ? currentMonth
-    : wealthDataPoints.reduce((best, dp) =>
-        dp.year_month < best ? dp.year_month : best,
-        wealthDataPoints[0].year_month
-      )
+  const { latestMonth, earliestMonth } = deriveMonthBounds(wealthDataPoints)
 
   // Historical portion: max range (all data) using aggregateSummary
   // DO NOT reimplement LOCF or aggregation — reuse the tested functions from summary.ts

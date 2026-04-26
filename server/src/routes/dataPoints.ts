@@ -3,18 +3,11 @@ import { HTTPException } from 'hono/http-exception'
 import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
-import { categoryType as getCategoryType } from '../models/index.js'
 import type { DataPoint } from '../models/index.js'
 import { readDb, readDataPoints, readDbAndDataPoints, mutateDataPoints } from '../storage/index.js'
+import { zodErrorHook as hook } from '../util/zodHook.js'
 
 const router = new Hono()
-
-// MANDATORY hook — returns {"error":"..."} on failure (API-01 compliance)
-const hook = (result: { success: boolean; error?: z.ZodError }, c: any) => {
-  if (!result.success && result.error) {
-    return c.json({ error: result.error.issues[0]?.message ?? 'Invalid request' }, 400 as const)
-  }
-}
 
 // Optional query params for listing — all params are additive and optional (backward-compat)
 const listQuerySchema = z.object({
@@ -68,8 +61,22 @@ router.get('/', zValidator('query', listQuerySchema, hook), async (c) => {
     dataPoints = await readDataPoints()
   }
 
+  // DP-01-PERF: filter first, sort the survivors. Otherwise the entire dataset
+  // is sorted on every request even when filters trim it to a small slice.
+  const filtered = dataPoints.filter(dp => {
+    if (year_month !== undefined && dp.year_month !== year_month) return false
+    if (asset_id !== undefined && dp.asset_id !== asset_id) return false
+    if (assetMeta) {
+      const meta = assetMeta.get(dp.asset_id)
+      if (!meta) return false
+      if (person_id !== undefined && meta.person_id !== person_id) return false
+      if (category_id !== undefined && meta.category_id !== category_id) return false
+    }
+    return true
+  })
+
   // Sort — numeric comparison for value, lexicographic for string fields
-  const sorted = [...dataPoints].sort((a, b) => {
+  filtered.sort((a, b) => {
     let cmp: number
     if (sort === 'value') {
       cmp = a.value - b.value
@@ -83,19 +90,6 @@ router.get('/', zValidator('query', listQuerySchema, hook), async (c) => {
       cmp = a.updated_at.localeCompare(b.updated_at)
     }
     return order === 'desc' ? -cmp : cmp
-  })
-
-  // Filter
-  const filtered = sorted.filter(dp => {
-    if (year_month !== undefined && dp.year_month !== year_month) return false
-    if (asset_id !== undefined && dp.asset_id !== asset_id) return false
-    if (assetMeta) {
-      const meta = assetMeta.get(dp.asset_id)
-      if (!meta) return false
-      if (person_id !== undefined && meta.person_id !== person_id) return false
-      if (category_id !== undefined && meta.category_id !== category_id) return false
-    }
-    return true
   })
 
   const total = filtered.length
@@ -119,8 +113,7 @@ router.post('/', zValidator('json', createSchema, hook), async (c) => {
   }
 
   const category = db.categories.find((cat) => cat.id === asset.category_id)
-  const catType = category ? getCategoryType(category) : 'asset'
-  if (catType === 'liability' && body.value > 0) {
+  if (category?.type === 'liability' && body.value > 0) {
     throw new HTTPException(400, { message: 'Liability values must be zero or negative' })
   }
 
@@ -174,8 +167,7 @@ router.post('/batch', zValidator('json', batchUpsertSchema, hook), async (c) => 
       continue
     }
     const category = categoryMap.get(asset.category_id)
-    const catType = category ? getCategoryType(category) : 'asset'
-    if (catType === 'liability' && item.value > 0) {
+    if (category?.type === 'liability' && item.value > 0) {
       errors.push({ asset_id: item.asset_id, year_month: item.year_month, error: 'Liability values must be zero or negative' })
       failed++
       continue
@@ -240,7 +232,9 @@ router.put('/:id', zValidator('json', updateSchema, hook), async (c) => {
     throw new HTTPException(400, { message: 'id cannot be changed' })
   }
 
-  const dataPoints = await readDataPoints()
+  // DP-03-PERF: single mutex acquisition — readDbAndDataPoints reads both files
+  // under one lock, so we don't pay the readDataPoints + readDb cost separately.
+  const { db, dataPoints } = await readDbAndDataPoints()
   const existing = dataPoints.find((dp) => dp.id === paramId)
   if (!existing) throw new HTTPException(404, { message: 'Data point not found' })
 
@@ -248,14 +242,11 @@ router.put('/:id', zValidator('json', updateSchema, hook), async (c) => {
     throw new HTTPException(400, { message: 'asset_id cannot be changed' })
   }
 
-  if (body.value !== undefined) {
-    const db = await readDb()
-    const asset = db.assets.find((a) => a.id === existing.asset_id)
-    const category = db.categories.find((cat) => cat.id === asset?.category_id)
-    const catType = category ? getCategoryType(category) : 'asset'
-    if (catType === 'liability' && body.value > 0) {
-      throw new HTTPException(400, { message: 'Liability values must be zero or negative' })
-    }
+  // updateSchema requires `value` (non-optional zod number), so it is always defined.
+  const asset = db.assets.find((a) => a.id === existing.asset_id)
+  const category = db.categories.find((cat) => cat.id === asset?.category_id)
+  if (category?.type === 'liability' && body.value > 0) {
+    throw new HTTPException(400, { message: 'Liability values must be zero or negative' })
   }
 
   // Destructure immutable fields out so they are never overridden from body

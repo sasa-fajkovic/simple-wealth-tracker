@@ -10,8 +10,6 @@ export interface Category {
   projected_yearly_growth: number  // decimal, e.g. 0.08 = 8% annual
   color: string                    // hex, e.g. '#6366f1'
   type: 'asset' | 'cash-inflow' | 'liability'
-  /** @deprecated Use `type`. Present on pre-v2 records only. */
-  track_only?: boolean
 }
 
 export interface Asset {

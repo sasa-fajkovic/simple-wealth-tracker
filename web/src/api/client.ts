@@ -113,10 +113,6 @@ export async function deleteAsset(id: string, force = false): Promise<DeleteAsse
 
 // ── Data Points ────────────────────────────────────────────────────────────────
 
-export function getDataPoints(): Promise<DataPoint[]> {
-  return apiFetch('/data-points')
-}
-
 export interface DataPointsPage {
   items: DataPoint[]
   total: number
