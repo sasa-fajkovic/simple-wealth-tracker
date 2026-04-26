@@ -234,6 +234,13 @@ function navigate(delta: -1 | 1): void {
   selectedMonth.value = shiftMonth(selectedMonth.value, delta)
 }
 
+function navigateYear(delta: -1 | 1): void {
+  const { year, month } = monthParts(selectedMonth.value)
+  const nextYear = year + delta
+  if (nextYear < MIN_JUMP_YEAR || nextYear > MAX_JUMP_YEAR) return
+  selectedMonth.value = formatYearMonth(nextYear, month)
+}
+
 function jumpToYear(year: number): void {
   const { month } = monthParts(selectedMonth.value)
   selectedMonth.value = formatYearMonth(year, month)
@@ -353,45 +360,63 @@ async function saveAll(): Promise<void> {
       >
         History / Corrections
       </RouterLink>
-      <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
-        <Button
-          icon="pi pi-chevron-left"
-          text
-          class="min-h-11 min-w-11"
-          aria-label="Previous month"
-          @click="navigate(-1)"
-        />
-        <Select
-          v-model="selectedMonthNumber"
-          :options="MONTH_OPTIONS"
-          option-label="label"
-          option-value="value"
-          aria-label="Select month"
-          class="h-11 min-w-40 wt-month-select"
-        />
-        <Button
-          icon="pi pi-chevron-right"
-          text
-          class="min-h-11 min-w-11"
-          aria-label="Next month"
-          @click="navigate(1)"
-        />
-        <label class="inline-flex h-11 items-center gap-3 rounded-2xl bg-gray-100/80 p-1 pl-4 shadow-sm ring-1 ring-black/0 dark:bg-zinc-800/80">
-          <span class="text-sm font-semibold text-gray-500 dark:text-zinc-400">Year</span>
-          <input
-            :value="selectedYearInput"
-            type="number"
-            inputmode="numeric"
-            :min="MIN_JUMP_YEAR"
-            :max="MAX_JUMP_YEAR"
-            aria-label="Jump to year"
-            class="h-10 w-24 rounded-xl border border-gray-200 bg-white px-3 text-center text-lg font-bold tabular-nums text-gray-900 shadow-sm outline-none transition [appearance:textfield] focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            @input="handleYearInput"
-            @focus="selectYearInput"
-            @blur="applyYearInput"
-            @keydown.enter.prevent="applyYearInput"
+      <div class="ml-auto flex flex-wrap items-center justify-end gap-3">
+        <div class="inline-flex items-center gap-1" aria-label="Month navigation">
+          <Button
+            icon="pi pi-chevron-left"
+            text
+            class="min-h-11 min-w-10"
+            aria-label="Previous month"
+            @click="navigate(-1)"
           />
-        </label>
+          <Select
+            v-model="selectedMonthNumber"
+            :options="MONTH_OPTIONS"
+            option-label="label"
+            option-value="value"
+            aria-label="Select month"
+            class="h-11 min-w-40 wt-month-select"
+          />
+          <Button
+            icon="pi pi-chevron-right"
+            text
+            class="min-h-11 min-w-10"
+            aria-label="Next month"
+            @click="navigate(1)"
+          />
+        </div>
+        <div class="inline-flex items-center gap-1" aria-label="Year navigation">
+          <Button
+            icon="pi pi-chevron-left"
+            text
+            class="min-h-11 min-w-10"
+            aria-label="Previous year"
+            @click="navigateYear(-1)"
+          />
+          <label class="inline-flex h-11 items-center gap-3 rounded-2xl bg-gray-100/80 p-1 pl-4 shadow-sm ring-1 ring-black/0 dark:bg-zinc-800/80">
+            <span class="text-sm font-semibold text-gray-500 dark:text-zinc-400">Year</span>
+            <input
+              :value="selectedYearInput"
+              type="number"
+              inputmode="numeric"
+              :min="MIN_JUMP_YEAR"
+              :max="MAX_JUMP_YEAR"
+              aria-label="Jump to year"
+              class="h-10 w-24 rounded-xl border border-gray-200 bg-white px-3 text-center text-lg font-bold tabular-nums text-gray-900 shadow-sm outline-none transition [appearance:textfield] focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              @input="handleYearInput"
+              @focus="selectYearInput"
+              @blur="applyYearInput"
+              @keydown.enter.prevent="applyYearInput"
+            />
+          </label>
+          <Button
+            icon="pi pi-chevron-right"
+            text
+            class="min-h-11 min-w-10"
+            aria-label="Next year"
+            @click="navigateYear(1)"
+          />
+        </div>
         <Button
           label="This month"
           text

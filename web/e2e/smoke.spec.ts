@@ -166,6 +166,10 @@ test.describe('Monthly Update page', () => {
     await yearInput.fill('2010')
     await yearInput.press('Enter')
     await expect(yearInput).toHaveValue('2010')
+    await page.getByRole('button', { name: 'Next year' }).click()
+    await expect(yearInput).toHaveValue('2011')
+    await page.getByRole('button', { name: 'Previous year' }).click()
+    await expect(yearInput).toHaveValue('2010')
 
     await page.getByRole('combobox', { name: 'Select month' }).click()
     await page.getByRole('option', { name: 'January', exact: true }).click()
