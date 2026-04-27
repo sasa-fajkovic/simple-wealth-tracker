@@ -368,12 +368,12 @@ async function saveAll(): Promise<void> {
       >
         History / Corrections
       </RouterLink>
-      <div class="ml-auto flex flex-wrap items-center justify-end gap-3">
+      <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:ml-auto sm:justify-end sm:gap-3">
         <div class="inline-flex items-center gap-1" aria-label="Month navigation">
           <Button
             icon="pi pi-chevron-left"
             text
-            class="min-h-11 min-w-10"
+            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
             aria-label="Previous month"
             @click="navigate(-1)"
           />
@@ -383,12 +383,12 @@ async function saveAll(): Promise<void> {
             option-label="label"
             option-value="value"
             aria-label="Select month"
-            class="h-11 min-w-40 wt-month-select"
+            class="h-11 min-w-28 sm:min-w-40 wt-month-select"
           />
           <Button
             icon="pi pi-chevron-right"
             text
-            class="min-h-11 min-w-10"
+            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
             aria-label="Next month"
             @click="navigate(1)"
           />
@@ -397,12 +397,12 @@ async function saveAll(): Promise<void> {
           <Button
             icon="pi pi-chevron-left"
             text
-            class="min-h-11 min-w-10"
+            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
             aria-label="Previous year"
             @click="navigateYear(-1)"
           />
-          <label class="inline-flex h-11 items-center gap-3 rounded-2xl bg-gray-100/80 p-1 pl-4 shadow-sm ring-1 ring-black/0 dark:bg-zinc-800/80">
-            <span class="text-sm font-semibold text-gray-500 dark:text-zinc-400">Year</span>
+          <label class="inline-flex h-11 items-center gap-2 rounded-2xl bg-gray-100/80 p-1 pl-3 shadow-sm ring-1 ring-black/0 sm:gap-3 sm:pl-4 dark:bg-zinc-800/80">
+            <span class="hidden text-sm font-semibold text-gray-500 sm:inline dark:text-zinc-400">Year</span>
             <input
               :value="selectedYearInput"
               type="number"
@@ -410,7 +410,7 @@ async function saveAll(): Promise<void> {
               :min="MIN_JUMP_YEAR"
               :max="MAX_JUMP_YEAR"
               aria-label="Jump to year"
-              class="h-10 w-24 rounded-xl border border-gray-200 bg-white px-3 text-center text-lg font-bold tabular-nums text-gray-900 shadow-sm outline-none transition [appearance:textfield] focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              class="h-10 w-16 rounded-xl border border-gray-200 bg-white px-2 text-center text-lg font-bold tabular-nums text-gray-900 shadow-sm outline-none transition [appearance:textfield] focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 sm:w-24 sm:px-3 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               @input="handleYearInput"
               @focus="selectYearInput"
               @blur="applyYearInput"
@@ -420,7 +420,7 @@ async function saveAll(): Promise<void> {
           <Button
             icon="pi pi-chevron-right"
             text
-            class="min-h-11 min-w-10"
+            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
             aria-label="Next year"
             @click="navigateYear(1)"
           />
@@ -471,7 +471,7 @@ async function saveAll(): Promise<void> {
         severity="secondary"
         @click="clearFilters"
       />
-      <div class="ml-auto flex flex-wrap gap-2">
+      <div class="flex w-full flex-wrap gap-2 sm:w-auto sm:ml-auto">
         <Button
           label="Copy Forward"
           icon="pi pi-copy"
