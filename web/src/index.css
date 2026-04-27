@@ -307,6 +307,8 @@ a {
 .wt-person-select .p-togglebutton,
 .wt-person-select .p-button {
   min-width: 3.75rem;
+  flex: 0 0 auto;
+  width: auto;
   justify-content: center;
 }
 
