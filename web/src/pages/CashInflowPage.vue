@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { getSummary, getPersons, ApiError } from '../api/client'
-import type { SummaryResponse, RangeKey, Person } from '../types/index'
+import { useRouter } from 'vue-router'
+import { getSummary, getPersons, getAssets, ApiError } from '../api/client'
+import type { SummaryResponse, RangeKey, Person, Asset } from '../types/index'
 import ChartTypeSelector from '../components/ChartTypeSelector.vue'
 import WealthChart from '../components/WealthChart.vue'
 import SelectButton from 'primevue/selectbutton'
@@ -20,6 +21,7 @@ const RANGES: { label: string; value: RangeKey }[] = [
 
 const range = ref<RangeKey>('ytd')
 const persons = ref<Person[]>([])
+const assets = ref<Asset[]>([])
 const person = ref<string | null>(null)
 const data = ref<SummaryResponse | null>(null)
 const loading = ref(true)
@@ -27,6 +29,7 @@ const error = ref<string | null>(null)
 const retryCount = ref(0)
 const { chartType, setChartType } = useChartType('cashinflow-chart-type-v2', 'trend')
 const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
+const router = useRouter()
 
 const eurFmt = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' })
 
@@ -40,9 +43,19 @@ async function loadPersons() {
   }
 }
 
+async function loadAssets() {
+  try {
+    assets.value = await getAssets()
+  } catch (err) {
+    // Asset list is only used for click-drill resolution; failure is non-fatal
+    console.warn('Income page: failed to load assets', err)
+  }
+}
+
 onMounted(() => {
   document.title = 'Income — WealthTrack'
   loadPersons()
+  loadAssets()
 })
 
 async function loadSummary() {
@@ -58,7 +71,10 @@ async function loadSummary() {
 }
 
 watch([range, person, retryCount, referenceDataVersion, dataPointsVersion], loadSummary, { immediate: true })
-watch(referenceDataVersion, loadPersons)
+watch(referenceDataVersion, () => {
+  loadPersons()
+  loadAssets()
+})
 
 const personOptions = computed(() => [
   { label: 'All', value: 'all' },
@@ -171,6 +187,36 @@ const displayData = computed<SummaryResponse | null>(() => {
     category_breakdown,
   }
 })
+
+const assetCategoryById = computed(() => new Map(assets.value.map(a => [a.id, a.category_id])))
+
+function onChartPointClick(payload: { monthIndex: number; datasetIndex: number; datasetLabel: string }) {
+  if (!data.value || !displayData.value) return
+  const months = displayData.value.months
+  const monthRaw = months[payload.monthIndex]
+  if (!monthRaw) return
+  const month = monthRaw.slice(0, 7)
+  const query: Record<string, string> = { month }
+
+  // Trend chart shows total only — no per-series filter
+  const isTotal = chartType.value === 'trend' || payload.datasetLabel === 'Total'
+  const series = displayData.value.series[payload.datasetIndex]
+  if (!isTotal && series) {
+    if (person.value === null) {
+      // Grouped by person → series id IS person_id
+      if (persons.value.some(p => p.id === series.category_id)) {
+        query.person = series.category_id
+      }
+    } else {
+      // Grouped by asset for a specific person → carry person + map asset → category
+      query.person = person.value
+      const categoryId = assetCategoryById.value.get(series.category_id)
+      if (categoryId) query.category = categoryId
+    }
+  }
+
+  router.push({ path: '/monthly-update', query })
+}
 </script>
 
 <template>
@@ -255,7 +301,7 @@ const displayData = computed<SummaryResponse | null>(() => {
             {{ chartSubtitle }}
           </p>
         </div>
-        <WealthChart :data="displayData" :chart-type="chartType" />
+        <WealthChart :data="displayData" :chart-type="chartType" @point-click="onChartPointClick" />
       </div>
     </div>
   </div>

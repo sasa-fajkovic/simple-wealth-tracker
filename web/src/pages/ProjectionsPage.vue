@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getProjections, getCategories, getAssets, ApiError } from '../api/client'
 import type { ProjectionsResponse, ProjectionScenario, Category, Asset } from '../types/index'
 import ProjectionsChart from '../components/ProjectionsChart.vue'
@@ -63,6 +64,13 @@ const loading   = ref(true)
 const error     = ref<string | null>(null)
 const retryCount = ref(0)
 const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
+const router = useRouter()
+
+function onProjectionsPointClick(payload: { monthIndex: number; month: string; categoryId: string | null }) {
+  const query: Record<string, string> = { month: payload.month }
+  if (payload.categoryId) query.category = payload.categoryId
+  router.push({ path: '/monthly-update', query })
+}
 
 // ── Assumptions data ──────────────────────────────────────────────────────────
 const categories = ref<Category[]>([])
@@ -501,6 +509,7 @@ const categoryBreakdownGroups = computed(() => {
                 :data="data"
                 :chart-type="chartType"
                 :hidden-categories="effectiveHidden"
+                @point-click="onProjectionsPointClick"
               />
             </div>
           </div>

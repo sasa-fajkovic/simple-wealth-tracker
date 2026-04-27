@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   getAssets, getCategories, getPersons, ApiError,
   getDataPointsForMonth, batchUpsertDataPoints,
@@ -98,6 +98,20 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 const saveSummary = ref<SaveSummary | null>(null)
 const { referenceDataVersion, dataPointsVersion, notifyDataPointsChanged } = useDataRefresh()
+const route = useRoute()
+const router = useRouter()
+
+function isValidYearMonth(value: string): boolean {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false
+  const { year } = monthParts(value)
+  return year >= MIN_JUMP_YEAR && year <= MAX_JUMP_YEAR
+}
+
+function readQueryString(key: string): string | null {
+  const raw = route.query[key]
+  if (Array.isArray(raw)) return raw[0] ?? null
+  return typeof raw === 'string' && raw.length > 0 ? raw : null
+}
 
 // ── Derived ────────────────────────────────────────────────────────────────────
 
@@ -207,7 +221,24 @@ onMounted(async () => {
   initLoading.value = true
   error.value = null
   try {
+    const queryMonth = readQueryString('month')
+    if (queryMonth && isValidYearMonth(queryMonth)) {
+      selectedMonth.value = queryMonth
+      selectedYearInput.value = String(monthParts(queryMonth).year)
+    }
     await loadReferenceData()
+    const queryPerson = readQueryString('person')
+    if (queryPerson && persons.value.some(p => p.id === queryPerson)) {
+      filterPersonId.value = queryPerson
+    }
+    const queryCategory = readQueryString('category')
+    if (queryCategory && categories.value.some(c => c.id === queryCategory)) {
+      filterCategoryId.value = queryCategory
+    }
+    if (queryMonth || queryPerson || queryCategory) {
+      // Strip query so a refresh doesn't re-apply (and a manual filter change isn't fought)
+      router.replace({ path: route.path, query: {} }).catch(() => {})
+    }
     await loadMonthData()
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'Unexpected error loading data'

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getSummary, getPersons, getAssets, getCategories, ApiError } from '../api/client'
 import type { SummaryResponse, RangeKey, Person, Asset, Category } from '../types/index'
 import DashboardTrendCharts from '../components/DashboardTrendCharts.vue'
@@ -29,6 +30,14 @@ const error = ref<string | null>(null)
 const retryCount = ref(0)
 const inventoryLoading = ref(true)
 const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
+const router = useRouter()
+
+function onTrendChartClick(payload: { kind: 'netWorth' | 'assets' | 'liabilities' | 'income'; monthIndex: number; month: string }) {
+  const month = payload.month.slice(0, 7)
+  const query: Record<string, string> = { month }
+  if (person.value) query.person = person.value
+  router.push({ path: '/monthly-update', query })
+}
 
 async function loadReferenceData() {
   inventoryLoading.value = true
@@ -191,7 +200,7 @@ function formatSignedEur(v: number) {
 
       <!-- Dashboard trends -->
       <template v-else-if="data && cashInflowData">
-        <DashboardTrendCharts :data="data" :cash-inflow-data="cashInflowData" />
+        <DashboardTrendCharts :data="data" :cash-inflow-data="cashInflowData" @point-click="onTrendChartClick" />
       </template>
   </PageShell>
 </template>

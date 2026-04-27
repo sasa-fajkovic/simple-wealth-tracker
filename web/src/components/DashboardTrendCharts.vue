@@ -13,6 +13,9 @@ import {
   type ChartData,
   type ChartOptions,
   type TooltipItem,
+  type Chart,
+  type ChartEvent,
+  type ActiveElement,
 } from 'chart.js'
 import type { SummaryResponse } from '../types/index'
 import { useTheme } from '../composables/useTheme'
@@ -27,6 +30,34 @@ const props = defineProps<{
   data: SummaryResponse
   cashInflowData: SummaryResponse
 }>()
+
+type CardKind = 'netWorth' | 'assets' | 'liabilities' | 'income'
+
+const emit = defineEmits<{
+  'point-click': [payload: { kind: CardKind; monthIndex: number; month: string }]
+}>()
+
+function setHoverCursor(event: ChartEvent, elements: ActiveElement[]) {
+  const native = event.native as Event | undefined
+  const target = (native?.target ?? null) as HTMLElement | null
+  if (target && 'style' in target) {
+    target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+  }
+}
+
+function makeClickHandler(kind: CardKind, labelsRef: () => string[]) {
+  return (event: ChartEvent, _elements: ActiveElement[], chart: Chart) => {
+    const native = event.native as Event | undefined
+    if (!native) return
+    const hits = chart.getElementsAtEventForMode(native, 'nearest', { intersect: true }, true)
+    if (hits.length === 0) return
+    const monthIndex = hits[0].index
+    const labels = labelsRef()
+    const month = labels[monthIndex]
+    if (!month) return
+    emit('point-click', { kind, monthIndex, month })
+  }
+}
 
 const { theme } = useTheme()
 
@@ -91,6 +122,8 @@ const cards = computed(() => [
     currentValue: latestValue(assetValues.value),
     hasData: assetValues.value.some(value => value !== 0),
     data: trendChartData('Assets', labels.value, assetValues.value, wealthColors.assets.emerald),
+    kind: 'assets' as CardKind,
+    labelsRef: () => labels.value,
   },
   {
     title: 'Liabilities Trend',
@@ -99,6 +132,8 @@ const cards = computed(() => [
     currentValue: latestValue(liabilityValues.value),
     hasData: liabilityValues.value.some(value => value !== 0),
     data: trendChartData('Liabilities', labels.value, liabilityValues.value, wealthColors.liabilities.rose),
+    kind: 'liabilities' as CardKind,
+    labelsRef: () => labels.value,
   },
   {
     title: 'Income Trend',
@@ -107,15 +142,19 @@ const cards = computed(() => [
     currentValue: latestValue(cashInflowValues.value),
     hasData: cashInflowValues.value.some(value => value !== 0),
     data: trendChartData('Income', cashInflowLabels.value, cashInflowValues.value, wealthColors.cashInflow.teal),
+    kind: 'income' as CardKind,
+    labelsRef: () => cashInflowLabels.value,
   },
 ])
 
-const chartOptions = computed((): ChartOptions<'line'> => {
+function buildChartOptions(kind: CardKind, labelsRef: () => string[]): ChartOptions<'line'> {
   const tokens = getChartTokens(theme.value === 'dark')
   return {
     responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
+    onHover: setHoverCursor,
+    onClick: makeClickHandler(kind, labelsRef),
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -139,38 +178,19 @@ const chartOptions = computed((): ChartOptions<'line'> => {
       },
     },
   }
-})
+}
 
-const netWorthChartOptions = computed((): ChartOptions<'line'> => {
-  const tokens = getChartTokens(theme.value === 'dark')
-  return {
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: { mode: 'index', intersect: false },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        ...buildTooltipDefaults(tokens),
-        callbacks: {
-          label: (ctx: TooltipItem<'line'>) => ` ${eurFmt.format((ctx.parsed as { y: number }).y)}`,
-        },
-      },
-      datalabels: { display: false },
-    },
-    scales: {
-      x: {
-        grid: { color: tokens.grid },
-        border: { display: false },
-        ticks: { color: tokens.tick, font: { size: 11 }, maxTicksLimit: 8 },
-      },
-      y: {
-        grid: { color: tokens.grid },
-        border: { display: false },
-        ticks: { color: tokens.tick, font: { size: 11 }, callback: (value) => compactFmt.format(value as number) },
-      },
-    },
-  }
-})
+const netWorthChartOptions = computed((): ChartOptions<'line'> => buildChartOptions('netWorth', () => labels.value))
+const assetsChartOptions = computed((): ChartOptions<'line'> => buildChartOptions('assets', () => labels.value))
+const liabilitiesChartOptions = computed((): ChartOptions<'line'> => buildChartOptions('liabilities', () => labels.value))
+const incomeChartOptions = computed((): ChartOptions<'line'> => buildChartOptions('income', () => cashInflowLabels.value))
+
+const cardOptionsByKind = computed<Record<CardKind, ChartOptions<'line'>>>(() => ({
+  netWorth: netWorthChartOptions.value,
+  assets: assetsChartOptions.value,
+  liabilities: liabilitiesChartOptions.value,
+  income: incomeChartOptions.value,
+}))
 </script>
 
 <template>
@@ -204,7 +224,7 @@ const netWorthChartOptions = computed((): ChartOptions<'line'> => {
           <Line
             v-if="card.hasData"
             :data="card.data"
-            :options="chartOptions"
+            :options="cardOptionsByKind[card.kind]"
           />
           <div v-else class="flex h-full items-center justify-center text-sm text-gray-400 dark:text-zinc-500">
             No data yet
