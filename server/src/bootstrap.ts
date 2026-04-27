@@ -23,7 +23,23 @@ export async function bootstrapDatabase(): Promise<void> {
   try {
     await access(DB_PATH)
   } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    const code = (err as NodeJS.ErrnoException).code
+    if (code === 'EACCES' || code === 'EPERM') {
+      // The data directory exists but the running user (uid 1000 / `node`) has
+      // no permission to read it. Most commonly happens on bind-mounted host
+      // volumes whose ownership doesn't match the container user — e.g. files
+      // created as root via SSH. The Docker entrypoint normally chown's /data
+      // at startup; reaching this branch means that fix-up was skipped or failed
+      // (read-only mount, custom --user, non-root entrypoint, etc.).
+      console.error(
+        `Error: Cannot access ${DB_PATH} (${code}).\n` +
+        `The data directory is not readable by the container user (uid 1000).\n` +
+        `Fix on the host: chown -R 1000:1000 <host_path_mounted_at_/data>\n` +
+        `(see README "Permissions" section for details).`,
+      )
+      process.exit(1)
+    }
+    if (code !== 'ENOENT') throw err
     fileExists = false
   }
 

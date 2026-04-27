@@ -59,6 +59,16 @@ docker compose up -d
 
 Data is persisted in `./data/` on the host (created automatically on first run).
 
+### Permissions
+
+The container runs the app as the non-root `node` user (uid 1000). On startup, the entrypoint runs briefly as root to `chown` `/data` to that user, so most bind-mount setups work out of the box.
+
+If you edit files inside the data volume manually (e.g. via SSH as root), they may end up owned by a uid the container can't read. If startup fails with `EACCES`, fix the ownership on the host:
+
+```bash
+chown -R 1000:1000 /path/to/data
+```
+
 ## Development
 
 ### Prerequisites
