@@ -107,7 +107,7 @@ function formatSignedEur(v: number) {
   <PageShell>
       <!-- Controls row -->
       <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="wt-control-strip -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div class="wt-control-strip -mx-4 px-4 sm:mx-0 sm:px-0" v-active-scroll>
           <SelectButton
             v-model="range"
             :options="RANGES"
@@ -120,7 +120,7 @@ function formatSignedEur(v: number) {
       </div>
 
       <!-- Person filter -->
-      <div v-if="persons.length > 0" class="wt-control-strip -mx-4 px-4 sm:mx-0 sm:px-0 mb-3">
+      <div v-if="persons.length > 0" class="wt-control-strip -mx-4 px-4 sm:mx-0 sm:px-0 mb-3" v-active-scroll>
         <SelectButton
           v-model="personValue"
           :options="personOptions"

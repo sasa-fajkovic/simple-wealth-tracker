@@ -281,7 +281,7 @@ const categoryBreakdownGroups = computed(() => {
         <!-- Row 1: Horizon + Chart type -->
         <div class="grid gap-2 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <div class="wt-control-strip max-w-full">
+            <div class="wt-control-strip max-w-full" v-active-scroll>
               <SelectButton
                 v-model="horizon"
                 :options="HORIZONS"
