@@ -14,6 +14,7 @@ function toSlug(name: string): string {
 const props = defineProps<{
   mode: 'create' | 'edit'
   item?: Asset
+  entityLabel?: string
   categories: Category[]
   persons?: Person[]
   saving: boolean
@@ -89,7 +90,7 @@ function handleSubmit() {
 
 <template>
   <Dialog
-    :header="mode === 'create' ? 'Add Asset' : 'Edit Asset'"
+    :header="`${mode === 'create' ? 'Add' : 'Edit'} ${entityLabel ?? 'Asset'}`"
     :visible="true"
     @update:visible="(v) => !v && onCancel()"
     :style="{ width: '32rem' }"
