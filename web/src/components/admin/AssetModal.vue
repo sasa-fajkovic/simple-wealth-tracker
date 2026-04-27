@@ -14,6 +14,7 @@ function toSlug(name: string): string {
 const props = defineProps<{
   mode: 'create' | 'edit'
   item?: Asset
+  entityLabel?: string
   categories: Category[]
   persons?: Person[]
   saving: boolean
@@ -30,7 +31,6 @@ const rateInput = ref<number | null>(
     ? props.item.projected_yearly_growth * 100
     : null
 )
-const location = ref(props.mode === 'edit' ? (props.item!.location ?? '') : '')
 const notes = ref(props.mode === 'edit' ? (props.item!.notes ?? '') : '')
 const validationError = ref<string | null>(null)
 
@@ -70,7 +70,6 @@ function handleSubmit() {
       name: name.value.trim(),
       category_id: categoryId.value,
       projected_yearly_growth: storedRate,
-      location: location.value.trim() || undefined,
       notes: notes.value.trim() || undefined,
       person_id: personId.value,
     })
@@ -79,7 +78,6 @@ function handleSubmit() {
       name: name.value.trim(),
       category_id: categoryId.value,
       projected_yearly_growth: storedRate,
-      location: location.value.trim() || undefined,
       notes: notes.value.trim() || undefined,
       person_id: personId.value,
     })
@@ -89,7 +87,7 @@ function handleSubmit() {
 
 <template>
   <Dialog
-    :header="mode === 'create' ? 'Add Asset' : 'Edit Asset'"
+    :header="`${mode === 'create' ? 'Add' : 'Edit'} ${entityLabel ?? 'Asset'}`"
     :visible="true"
     @update:visible="(v) => !v && onCancel()"
     :style="{ width: '32rem' }"
@@ -112,10 +110,6 @@ function handleSubmit() {
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Growth Rate % (optional — leave blank to inherit from category)</label>
       <InputNumber v-model="rateInput" suffix=" %" :min-fraction-digits="0" :max-fraction-digits="4" class="w-full" placeholder="e.g. 8" />
-    </div>
-    <div class="mb-3">
-      <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Location (optional)</label>
-      <InputText v-model="location" class="w-full" />
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Notes (optional)</label>

@@ -280,6 +280,7 @@ async function handleForceConfirm() {
       v-if="modal"
       :mode="modal.mode"
       :item="editItem"
+      :entity-label="tabLabel"
       :categories="filteredCategories"
       :persons="persons"
       :saving="saving"
