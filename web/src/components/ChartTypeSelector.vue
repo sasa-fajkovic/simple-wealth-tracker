@@ -31,7 +31,7 @@ function shortLabel(value: ChartType): string {
 </script>
 
 <template>
-  <div class="wt-control-strip max-w-full">
+  <div class="wt-control-strip max-w-full" v-active-scroll>
     <SelectButton
       :model-value="props.value"
       :options="options"

@@ -176,13 +176,13 @@ const displayData = computed<SummaryResponse | null>(() => {
   <div class="min-h-screen bg-gray-50 dark:bg-zinc-950">
     <div class="px-4 sm:px-6 py-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-        <div class="overflow-x-auto pb-0.5 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div class="overflow-x-auto pb-0.5 -mx-4 px-4 sm:mx-0 sm:px-0" v-active-scroll>
           <SelectButton v-model="range" :options="RANGES" option-label="label" option-value="value" class="whitespace-nowrap wt-touch-select wt-soft-select wt-range-select" />
         </div>
         <ChartTypeSelector :value="chartType" @change="setChartType" />
       </div>
 
-      <div v-if="persons.length > 0" class="overflow-x-auto pb-0.5 -mx-4 px-4 sm:mx-0 sm:px-0 mb-3">
+      <div v-if="persons.length > 0" class="overflow-x-auto pb-0.5 -mx-4 px-4 sm:mx-0 sm:px-0 mb-3" v-active-scroll>
         <SelectButton v-model="personValue" :options="personOptions" option-label="label" option-value="value" class="whitespace-nowrap wt-touch-select wt-soft-select wt-person-select" />
       </div>
 

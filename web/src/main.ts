@@ -7,6 +7,7 @@ import 'primeicons/primeicons.css'
 import './index.css'
 import App from './App.vue'
 import router from './router'
+import { vActiveScroll } from './directives/activeScroll'
 
 const app = createApp(App)
 app.use(PrimeVue, {
@@ -21,5 +22,6 @@ app.use(PrimeVue, {
 })
 app.use(ConfirmationService)
 app.directive('tooltip', Tooltip)
+app.directive('active-scroll', vActiveScroll)
 app.use(router)
 app.mount('#root')
