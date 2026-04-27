@@ -143,6 +143,7 @@ const displayData = computed<SummaryResponse | null>(() => {
   })
 
   const series = [...groups.values()]
+    .filter(group => group.values.some(v => v > 0))
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(group => ({
       category_id: group.id,
@@ -153,7 +154,7 @@ const displayData = computed<SummaryResponse | null>(() => {
     }))
 
   const category_breakdown = series.map(group => {
-    const value = group.values[group.values.length - 1] ?? 0
+    const value = group.values.reduce((sum, v) => sum + v, 0)
     return {
       category_id: group.category_id,
       category_name: group.category_name,

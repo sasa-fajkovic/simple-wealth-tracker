@@ -128,7 +128,9 @@ const hasCopyForwardCandidates = computed(() =>
 )
 
 const itemsToSaveCount = computed(() =>
-  rows.value.filter(r => r.inputValue !== null).length
+  rows.value.filter(r =>
+    r.inputValue !== null && (r.inputValue !== r.existingValue || !r.existingDpId)
+  ).length
 )
 
 const displayedMonth = computed(() => rowsMonth.value)
@@ -315,6 +317,10 @@ async function saveAll(): Promise<void> {
 
   for (const row of rows.value) {
     if (row.inputValue === null) {
+      skipped++
+      continue
+    }
+    if (row.existingDpId && row.inputValue === row.existingValue) {
       skipped++
       continue
     }

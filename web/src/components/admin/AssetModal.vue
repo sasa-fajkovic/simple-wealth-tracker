@@ -17,6 +17,7 @@ const props = defineProps<{
   entityLabel?: string
   categories: Category[]
   persons?: Person[]
+  existingIds?: string[]
   saving: boolean
   saveError: string | null
   onSave: (payload: CreateAssetPayload | UpdateAssetPayload) => void
@@ -36,6 +37,13 @@ const validationError = ref<string | null>(null)
 
 const slugPreview = computed(() => props.mode === 'create' ? toSlug(name.value) : props.item!.id)
 const personOptions = computed(() => props.persons ?? [])
+
+const slugConflict = computed(() => {
+  if (props.mode !== 'create') return false
+  const slug = slugPreview.value
+  if (!slug) return false
+  return (props.existingIds ?? []).includes(slug)
+})
 
 watch(() => props.categories, (list) => {
   if (props.mode === 'create' && !categoryId.value && list[0]) {
@@ -60,6 +68,10 @@ function handleSubmit() {
   }
   if (!personId.value) {
     validationError.value = 'Person is required'
+    return
+  }
+  if (slugConflict.value) {
+    validationError.value = `An entry with id '${slugPreview.value}' already exists. Choose a different name.`
     return
   }
   validationError.value = null
@@ -102,6 +114,7 @@ function handleSubmit() {
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">ID (slug) — read only</label>
       <input type="text" :value="slugPreview" readonly
         class="w-full bg-gray-50 dark:bg-zinc-950 cursor-not-allowed px-3 py-2 text-sm border border-gray-200 dark:border-zinc-700 rounded-md text-gray-500 dark:text-zinc-400" />
+      <p v-if="slugConflict" class="text-xs text-red-600 mt-1">An entry with id '{{ slugPreview }}' already exists.</p>
     </div>
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Category</label>
@@ -124,7 +137,7 @@ function handleSubmit() {
     <template #footer>
       <div class="flex justify-end gap-2">
         <Button label="Cancel" outlined @click="onCancel" type="button" />
-        <Button :label="saving ? 'Saving…' : 'Save'" :disabled="saving" @click="handleSubmit" type="button" />
+        <Button :label="saving ? 'Saving…' : 'Save'" :disabled="saving || slugConflict" @click="handleSubmit" type="button" />
       </div>
     </template>
   </Dialog>

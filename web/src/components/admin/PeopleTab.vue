@@ -231,6 +231,7 @@ defineExpose({ openCreate })
       v-if="modal"
       :mode="modal.mode"
       :item="editItem"
+      :existing-ids="rows.map(p => p.id)"
       :saving="saving"
       :save-error="saveError"
       :on-save="handleSave"

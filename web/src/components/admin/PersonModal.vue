@@ -12,6 +12,7 @@ function toSlug(name: string): string {
 const props = defineProps<{
   mode: 'create' | 'edit'
   item?: Person
+  existingIds?: string[]
   saving: boolean
   saveError: string | null
   onSave: (payload: CreatePersonPayload | UpdatePersonPayload) => void
@@ -22,10 +23,20 @@ const name = ref(props.mode === 'edit' ? props.item!.name : '')
 const validationError = ref<string | null>(null)
 
 const slugPreview = computed(() => props.mode === 'create' ? toSlug(name.value) : props.item!.id)
+const slugConflict = computed(() => {
+  if (props.mode !== 'create') return false
+  const slug = slugPreview.value
+  if (!slug) return false
+  return (props.existingIds ?? []).includes(slug)
+})
 
 function handleSubmit() {
   if (!name.value.trim()) {
     validationError.value = 'Name is required'
+    return
+  }
+  if (slugConflict.value) {
+    validationError.value = `A person with id '${slugPreview.value}' already exists. Choose a different name.`
     return
   }
   validationError.value = null
@@ -54,13 +65,14 @@ function handleSubmit() {
         readonly
         class="w-full bg-gray-50 dark:bg-zinc-950 cursor-not-allowed px-3 py-2 text-sm border border-gray-200 dark:border-zinc-700 rounded-md text-gray-500 dark:text-zinc-400"
       />
+      <p v-if="slugConflict" class="text-xs text-red-600 mt-1">A person with id '{{ slugPreview }}' already exists.</p>
     </div>
     <p v-if="validationError" class="text-xs text-red-600 mt-2">{{ validationError }}</p>
     <p v-if="saveError" class="text-xs text-red-600 mt-2">{{ saveError }}</p>
     <template #footer>
       <div class="flex justify-end gap-2">
         <Button label="Cancel" outlined @click="onCancel" type="button" />
-        <Button :label="saving ? 'Saving…' : 'Save'" :disabled="saving" @click="handleSubmit" type="button" />
+        <Button :label="saving ? 'Saving…' : 'Save'" :disabled="saving || slugConflict" @click="handleSubmit" type="button" />
       </div>
     </template>
   </Dialog>

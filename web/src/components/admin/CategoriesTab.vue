@@ -292,6 +292,7 @@ defineExpose({ openCreate })
       :mode="modal.mode"
       :item="modal.mode === 'edit' ? modal.item : undefined"
       :existing-colors="rows.map(r => r.color)"
+      :existing-ids="rows.map(r => r.id)"
       :saving="saving"
       :save-error="saveError"
       :on-save="handleSave"

@@ -144,6 +144,7 @@ const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
     // Liabilities: dashed line for visual distinction
     borderDash: s.category_type === 'liability' ? [5, 4] : undefined,
     stack: isArea ? (s.category_type === 'liability' ? 'liabilities' : 'assets') : undefined,
+    order: 1,
   }))
 
   if (showTotal.value) {
@@ -156,8 +157,9 @@ const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
       fill: false,
       tension: 0.1,
       pointRadius: 0,
-      borderWidth: 2,
+      borderWidth: 3,
       stack: undefined,
+      order: 0,
     })
   }
 

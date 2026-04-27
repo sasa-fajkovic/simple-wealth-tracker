@@ -283,6 +283,7 @@ async function handleForceConfirm() {
       :entity-label="tabLabel"
       :categories="filteredCategories"
       :persons="persons"
+      :existing-ids="rows.map(a => a.id)"
       :saving="saving"
       :save-error="saveError"
       :on-save="handleSave"
