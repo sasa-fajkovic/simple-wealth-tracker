@@ -13,6 +13,7 @@ import dataPointsRouter from './routes/dataPoints.js'
 import summaryRouter from './routes/summary.js'
 import projectionsRouter from './routes/projections.js'
 import personsRouter from './routes/persons.js'
+import exportRouter from './routes/export.js'
 
 // import.meta.url gives reliable absolute path regardless of CWD (RESEARCH.md Section 5)
 // In src/: resolves to server/src/ → ../../web/dist = web/dist
@@ -40,6 +41,7 @@ app.route('/api/v1/data-points', dataPointsRouter)
 app.route('/api/v1/summary', summaryRouter)
 app.route('/api/v1/projections', projectionsRouter)
 app.route('/api/v1/persons', personsRouter)
+app.route('/api/v1/export', exportRouter)
 
 // STEP 3: Static file serving — after API routes, before SPA catch-all
 // serveStatic calls next() when file not found — falls through to SPA catch-all naturally

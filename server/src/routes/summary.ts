@@ -42,9 +42,10 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
 
   const { startYM, endYM } = getRangeBounds(range, latestMonth, earliestMonth, currentMonth)
   const months = monthRange(startYM, endYM)
-  const locfData = locfFill(months, dataPoints, filteredAssets)
+  const fillMode = trackingMode ? 'flow' : 'stock'
+  const locfData = locfFill(months, dataPoints, filteredAssets, fillMode)
 
-  return c.json(aggregateSummary(filteredAssets, relevantCategories, locfData, months))
+  return c.json(aggregateSummary(filteredAssets, relevantCategories, locfData, months, fillMode))
 })
 
 export default router

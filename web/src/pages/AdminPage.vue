@@ -67,6 +67,20 @@ async function openCreateDialog() {
   }
   actions[activeTab.value]?.openCreate()
 }
+
+function downloadFile(url: string, filename: string): void {
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+function exportData(): void {
+  downloadFile('/api/v1/export/database', 'database.yaml')
+  setTimeout(() => downloadFile('/api/v1/export/datapoints', 'datapoints.csv'), 250)
+}
 </script>
 
 <template>
@@ -91,6 +105,7 @@ async function openCreateDialog() {
             >
               History / Corrections
             </RouterLink>
+            <Button label="Export" icon="pi pi-download" severity="secondary" size="small" @click="exportData" />
             <Button :label="createButtonLabel" icon="pi pi-plus" size="small" @click="openCreateDialog" />
           </div>
         </div>

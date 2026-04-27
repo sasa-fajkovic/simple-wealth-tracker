@@ -54,7 +54,7 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
 })
 
 function formatValue(v: number | null): string {
-  return v === null ? '—' : eurFormatter.format(v)
+  return eurFormatter.format(v ?? 0)
 }
 
 function currentMonthStr(): string {
@@ -369,11 +369,11 @@ async function saveAll(): Promise<void> {
         History / Corrections
       </RouterLink>
       <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:ml-auto sm:justify-end sm:gap-3">
-        <div class="inline-flex items-center gap-1" aria-label="Month navigation">
+        <div class="inline-flex items-center" aria-label="Month navigation">
           <Button
             icon="pi pi-chevron-left"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Previous month"
             @click="navigate(-1)"
           />
@@ -388,16 +388,16 @@ async function saveAll(): Promise<void> {
           <Button
             icon="pi pi-chevron-right"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Next month"
             @click="navigate(1)"
           />
         </div>
-        <div class="inline-flex items-center gap-1" aria-label="Year navigation">
+        <div class="inline-flex items-center" aria-label="Year navigation">
           <Button
             icon="pi pi-chevron-left"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Previous year"
             @click="navigateYear(-1)"
           />
@@ -420,7 +420,7 @@ async function saveAll(): Promise<void> {
           <Button
             icon="pi pi-chevron-right"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Next year"
             @click="navigateYear(1)"
           />
