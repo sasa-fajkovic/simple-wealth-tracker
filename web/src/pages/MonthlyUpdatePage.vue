@@ -713,12 +713,12 @@ async function saveAll(): Promise<void> {
               v-for="row in filteredRows"
               :key="row.assetId"
               data-testid="monthly-row"
-              class="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
+              class="border-b border-gray-100 dark:border-zinc-800 transition-colors"
               :class="row.rowError
-                ? 'bg-red-50/50 dark:bg-red-900/10'
+                ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
                 : hasBigChange(row)
-                  ? 'bg-red-100 dark:bg-red-900/30'
-                  : ''"
+                  ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/40'
+                  : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'"
             >
               <td class="py-2 pr-3 font-medium text-gray-900 dark:text-zinc-100">{{ row.assetName }}</td>
               <td class="py-2 pr-3">
