@@ -219,3 +219,38 @@ describe('buildProjection rateMultiplier', () => {
       'zero growth with aggressive: value stays at seed')
   })
 })
+
+describe('buildProjection floors values at 0', () => {
+  test('asset with steep negative rate never goes below 0 (cars depreciate to 0, not negative)', () => {
+    const cat = makeCategory('vehicles', -0.20) // -20%/yr depreciation
+    const asset = makeAsset('car', 'vehicles')
+    const dp = makeDP('car', '2024-01', 10000)
+    const proj = buildProjection([asset], [cat], [dp], 30, 1.0) // 30 years far past asymptote
+    for (const v of proj.series[0].values) {
+      assert.ok(v >= 0, `expected non-negative asset value, got ${v}`)
+    }
+    // sanity: still trending down — last value is much smaller than seed
+    assert.ok(proj.series[0].values.at(-1)! < 100)
+  })
+
+  test('asset rate < -100% does not produce negative values (e.g. user typo -1.5)', () => {
+    const cat = makeCategory('vehicles', -1.5) // catastrophic typo
+    const asset = makeAsset('car', 'vehicles')
+    const dp = makeDP('car', '2024-01', 10000)
+    const proj = buildProjection([asset], [cat], [dp], 1, 1.0)
+    for (const v of proj.series[0].values) {
+      assert.ok(v >= 0 && Number.isFinite(v), `expected finite non-negative value, got ${v}`)
+    }
+  })
+
+  test('liability with positive growth rate never crosses above 0 (debt cannot become surplus)', () => {
+    const cat: Category = { id: 'loan', name: 'loan', projected_yearly_growth: 0.05,
+                            color: '#ff0000', type: 'liability' }
+    const asset = makeAsset('mortgage', 'loan')
+    const dp = makeDP('mortgage', '2024-01', -1000) // small remaining balance
+    const proj = buildProjection([asset], [cat], [dp], 30, 1.0)
+    for (const v of proj.series[0].values) {
+      assert.ok(v <= 0, `expected non-positive liability value, got ${v}`)
+    }
+  })
+})
