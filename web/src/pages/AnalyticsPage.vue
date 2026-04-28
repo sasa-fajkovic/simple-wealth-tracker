@@ -133,6 +133,7 @@ const contributorMode = ref<ContributorMode>('categories')
 const drilldownType = ref<DrilldownType>('asset')
 const selectedCategoryId = ref<string | null>(null)
 const data = ref<SummaryResponse | null>(null)
+const cashInflowData = ref<SummaryResponse | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const personsError = ref<string | null>(null)
@@ -160,7 +161,14 @@ async function loadData() {
   loading.value = true
   error.value = null
   try {
-    data.value = await getSummary(range.value, person.value ?? undefined)
+    // Wealth summary drives all charts; cash-inflow summary feeds the Income drilldown
+    // (the two endpoints partition the data — one returns asset+liability, the other cash-inflow).
+    const [wealth, cashInflow] = await Promise.all([
+      getSummary(range.value, person.value ?? undefined),
+      getSummary(range.value, person.value ?? undefined, true),
+    ])
+    data.value = wealth
+    cashInflowData.value = cashInflow
   } catch (err) {
     error.value = err instanceof ApiError ? err.message : 'Unexpected error'
   } finally {
@@ -269,11 +277,15 @@ const contributorRows = computed((): ContributorRow[] => {
 })
 
 const categoryDrilldownRows = computed(() => {
-  if (!data.value) return []
-  return sortedCategoryBreakdown.value
+  // For Income drilldown, use the cash-inflow summary (the wealth summary doesn't include cash-inflow).
+  const source = drilldownType.value === 'cash-inflow' ? cashInflowData.value : data.value
+  if (!source) return []
+  return [...source.category_breakdown]
+    .filter(row => row.value !== 0)
     .filter(row => row.category_type === drilldownType.value)
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
     .map(row => {
-      const assets = data.value!.asset_breakdown
+      const assets = source.asset_breakdown
         .filter(asset => asset.category_id === row.category_id && asset.value !== 0)
         .sort((a, b) => Math.abs(b.value) - Math.abs(a.value) || a.asset_name.localeCompare(b.asset_name))
       return { ...row, assets }
@@ -1015,7 +1027,7 @@ function signedEur(v: number) {
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">
-                    {{ drilldownType === 'liability' ? 'Liability' : drilldownType === 'cash-inflow' ? 'Income' : 'Asset' }} Drilldown
+                    Drilldown
                   </h2>
                   <p class="mt-1 text-xs text-gray-400 dark:text-zinc-500">
                     Pick a category to see the individual {{ drilldownTypeLabel(drilldownType) }} behind it.
