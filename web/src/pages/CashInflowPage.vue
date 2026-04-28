@@ -19,11 +19,12 @@ const RANGES: { label: string; value: RangeKey }[] = [
   { label: '10Y', value: '10y' }, { label: 'Max', value: 'max' },
 ]
 
-const range = ref<RangeKey>('ytd')
+const range = ref<RangeKey>('3y')
 const persons = ref<Person[]>([])
 const assets = ref<Asset[]>([])
 const person = ref<string | null>(null)
 const data = ref<SummaryResponse | null>(null)
+const disabledSourceIds = ref<Set<string>>(new Set())
 const loading = ref(true)
 const error = ref<string | null>(null)
 const retryCount = ref(0)
@@ -71,6 +72,7 @@ async function loadSummary() {
 }
 
 watch([range, person, retryCount, referenceDataVersion, dataPointsVersion], loadSummary, { immediate: true })
+watch(person, () => { disabledSourceIds.value = new Set() })
 watch(referenceDataVersion, () => {
   loadPersons()
   loadAssets()
@@ -86,11 +88,12 @@ const personValue = computed({
 })
 const isEmpty = computed(() => !loading.value && data.value && data.value.series.length === 0)
 
-// Summary stats from the response
-const totalInflow = computed(() => data.value?.current_total ?? 0)
+// Summary stats — when person is selected, derive from enabled sources only
+const totalInflow = computed(() => displayData.value?.current_total ?? data.value?.current_total ?? 0)
 const monthsWithData = computed(() => {
-  if (!data.value) return 0
-  return data.value.totals.filter(t => t > 0).length
+  const totals = displayData.value?.totals ?? data.value?.totals
+  if (!totals) return 0
+  return totals.filter(t => t > 0).length
 })
 const avgMonthlyInflow = computed(() => {
   const months = monthsWithData.value
@@ -104,17 +107,61 @@ const chartSubtitle = computed(() => {
   if (chartType.value === 'trend') return 'Total income over time.'
   return person.value === null ? 'All income grouped by person.' : 'Selected person split into individual income sources.'
 })
+// "All" view (person === null): top 5 click-to-drill list of people
 const topSources = computed(() => {
-  if (!displayData.value) return []
+  if (person.value !== null || !displayData.value) return []
   return [...displayData.value.category_breakdown]
     .filter(r => r.value > 0)
     .sort((a, b) => b.value - a.value)
     .slice(0, 5)
 })
 
+// Per-person view: every source for that person, with an enabled/disabled flag.
+// Built from the unfiltered data so that disabled rows still appear in the list
+// (so the user can click them back on).
+const personSources = computed(() => {
+  if (person.value === null || !data.value) return []
+  const groups = new Map<string, { id: string; name: string; color: string; total: number }>()
+  data.value.asset_series.forEach((series, index) => {
+    const total = series.values.reduce((sum, v) => sum + v, 0)
+    if (total <= 0) return
+    const existing = groups.get(series.asset_id)
+    if (existing) {
+      existing.total += total
+    } else {
+      groups.set(series.asset_id, {
+        id: series.asset_id,
+        name: series.asset_name,
+        color: series.color || colorAt(index),
+        total,
+      })
+    }
+  })
+  const enabledTotal = [...groups.values()]
+    .filter(g => !disabledSourceIds.value.has(g.id))
+    .reduce((sum, g) => sum + g.total, 0)
+  return [...groups.values()]
+    .sort((a, b) => b.total - a.total)
+    .map(g => ({
+      category_id: g.id,
+      category_name: g.name,
+      color: g.color,
+      value: g.total,
+      pct_of_total: enabledTotal === 0 ? 0 : (g.total / enabledTotal) * 100,
+      disabled: disabledSourceIds.value.has(g.id),
+    }))
+})
+
 function selectTopSource(row: SummaryResponse['category_breakdown'][number]) {
   if (person.value !== null) return
   person.value = row.category_id
+}
+
+function toggleSource(id: string) {
+  const next = new Set(disabledSourceIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  disabledSourceIds.value = next
 }
 
 const palette = ['#14b8a6', '#22c55e', '#6366f1', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4']
@@ -143,6 +190,8 @@ const displayData = computed<SummaryResponse | null>(() => {
   }>()
 
   data.value.asset_series.forEach((series, index) => {
+    // When viewing a single person, allow excluding individual sources via toggle
+    if (!groupByPerson && disabledSourceIds.value.has(series.asset_id)) return
     const id = groupByPerson ? series.person_id : series.asset_id
     const name = groupByPerson ? personName(series.person_id) : series.asset_name
     const existing = groups.get(id)
@@ -169,6 +218,13 @@ const displayData = computed<SummaryResponse | null>(() => {
       values: group.values,
     }))
 
+  // Recompute totals timeline + grand total based on the (possibly filtered) series
+  const monthCount = data.value.months.length
+  const totals = Array.from({ length: monthCount }, (_, i) =>
+    series.reduce((sum, s) => sum + (s.values[i] ?? 0), 0)
+  )
+  const currentTotal = totals.reduce((sum, v) => sum + v, 0)
+
   const category_breakdown = series.map(group => {
     const value = group.values.reduce((sum, v) => sum + v, 0)
     return {
@@ -177,13 +233,15 @@ const displayData = computed<SummaryResponse | null>(() => {
       color: group.color,
       category_type: group.category_type,
       value,
-      pct_of_total: data.value!.current_total === 0 ? 0 : (value / data.value!.current_total) * 100,
+      pct_of_total: currentTotal === 0 ? 0 : (value / currentTotal) * 100,
     }
   })
 
   return {
     ...data.value,
     series,
+    totals,
+    current_total: currentTotal,
     category_breakdown,
   }
 })
@@ -244,7 +302,9 @@ function onChartPointClick(payload: { monthIndex: number; datasetIndex: number; 
       <template v-if="data && !loading && !isEmpty">
         <div
           class="grid gap-3 mb-4"
-          :class="topSources.length > 0 ? 'lg:grid-cols-[minmax(20rem,36rem)_minmax(0,1fr)]' : 'sm:grid-cols-2 lg:max-w-xl'"
+          :class="(person === null ? topSources.length > 0 : personSources.length > 0)
+            ? 'lg:grid-cols-[minmax(20rem,36rem)_minmax(0,1fr)]'
+            : 'sm:grid-cols-2 lg:max-w-xl'"
         >
           <div class="grid grid-cols-2 gap-3">
             <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-3 shadow-sm">
@@ -257,26 +317,60 @@ function onChartPointClick(payload: { monthIndex: number; datasetIndex: number; 
             </div>
           </div>
 
-          <!-- Top sources breakdown -->
-          <div v-if="topSources.length > 0" class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm">
+          <!-- "All" view: top 5 income sources, click-to-drill into a person -->
+          <div v-if="person === null && topSources.length > 0" class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm">
             <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
-              {{ person === null ? 'Income by Person' : 'Top Income Sources' }}
+              Income by Person
             </p>
             <div class="flex flex-col gap-1.5">
               <button
                 v-for="row in topSources"
                 :key="row.category_id"
                 type="button"
-                :disabled="person !== null"
-                :aria-label="person === null ? `Show only ${row.category_name}` : row.category_name"
-                class="flex w-full appearance-none items-center gap-3 rounded-md border-0 bg-transparent px-2 py-1 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 dark:focus-visible:ring-emerald-500/40"
-                :class="person === null ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800/70' : 'cursor-default text-inherit'"
+                :aria-label="`Show only ${row.category_name}`"
+                class="flex w-full appearance-none items-center gap-3 rounded-md border-0 bg-transparent px-2 py-1 text-left transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 dark:focus-visible:ring-emerald-500/40"
                 @click="selectTopSource(row)"
               >
                 <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" :style="{ backgroundColor: row.color }" />
                 <span class="flex-1 text-sm text-gray-700 dark:text-zinc-300 truncate">{{ row.category_name }}</span>
                 <span class="text-sm font-semibold text-gray-900 dark:text-zinc-100 tabular-nums">{{ eurFmt.format(row.value) }}</span>
                 <span class="text-xs text-gray-400 dark:text-zinc-500 tabular-nums w-12 text-right">{{ row.pct_of_total.toFixed(1) }}%</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Per-person view: full source list, click to enable/disable each source -->
+          <div v-else-if="person !== null && personSources.length > 0" class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm">
+            <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
+              Income Sources
+            </p>
+            <div class="flex flex-col gap-1.5">
+              <button
+                v-for="row in personSources"
+                :key="row.category_id"
+                type="button"
+                :aria-pressed="!row.disabled"
+                :aria-label="`${row.disabled ? 'Enable' : 'Disable'} ${row.category_name}`"
+                class="flex w-full appearance-none items-center gap-3 rounded-md border-0 bg-transparent px-2 py-1 text-left transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 dark:focus-visible:ring-emerald-500/40"
+                :class="row.disabled ? 'opacity-50' : ''"
+                @click="toggleSource(row.category_id)"
+              >
+                <span
+                  class="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  :style="{ backgroundColor: row.color }"
+                  :class="row.disabled ? 'ring-1 ring-gray-400 dark:ring-zinc-500' : ''"
+                />
+                <span
+                  class="flex-1 text-sm text-gray-700 dark:text-zinc-300 truncate"
+                  :class="row.disabled ? 'line-through' : ''"
+                >{{ row.category_name }}</span>
+                <span
+                  class="text-sm font-semibold tabular-nums"
+                  :class="row.disabled ? 'text-gray-400 dark:text-zinc-500 line-through' : 'text-gray-900 dark:text-zinc-100'"
+                >{{ eurFmt.format(row.value) }}</span>
+                <span class="text-xs text-gray-400 dark:text-zinc-500 tabular-nums w-12 text-right">
+                  {{ row.disabled ? '—' : `${row.pct_of_total.toFixed(1)}%` }}
+                </span>
               </button>
             </div>
           </div>
