@@ -29,7 +29,13 @@ function subtractMonths(ym: string, n: number): string {
  *   10y → 120 months      = latestMonth - 119
  *   ytd → Jan 1 of current calendar year → latestMonth
  *         (clamped: if currentYear-01 > latestMonth, startYM = latestMonth)
- *   max → earliestMonth → latestMonth
+ *   max → earliestMonth → endYM
+ *
+ * `endYM` semantics:
+ *   - When `currentMonth` is provided, endYM = currentMonth for ALL ranges.
+ *     Future data points are clamped (never plotted beyond today); stale data
+ *     is extended to today via downstream LOCF.
+ *   - When `currentMonth` is omitted, endYM = latestMonth (legacy callers/tests).
  *
  * SUM-01: supports all 8 range values
  */
@@ -39,13 +45,12 @@ export function getRangeBounds(
   earliestMonth: string,
   currentMonth?: string
 ): { startYM: string; endYM: string } {
-  // For fixed ranges (not max), anchor the end to currentMonth so that e.g. "1Y"
-  // always means "last 12 months ending today" — not "ending at the last data point".
-  // This avoids showing stale historical windows when data hasn't been updated recently.
-  const anchor = currentMonth && range !== 'max' && currentMonth > latestMonth
-    ? currentMonth
-    : latestMonth
-  const endYM = anchor
+  // Anchor the end to currentMonth (when known) for ALL ranges, including 'max'.
+  // - Future data points (latestMonth > currentMonth) are clamped: charts and
+  //   "current value" calculations never show beyond today.
+  // - Stale data (latestMonth < currentMonth) is still extended to today via
+  //   downstream LOCF — the last balance carries forward to "now".
+  const endYM = currentMonth ?? latestMonth
 
   switch (range) {
     case '6m':  return { startYM: subtractMonths(endYM, 5),   endYM }
@@ -54,10 +59,14 @@ export function getRangeBounds(
     case '3y':  return { startYM: subtractMonths(endYM, 35),  endYM }
     case '5y':  return { startYM: subtractMonths(endYM, 59),  endYM }
     case '10y': return { startYM: subtractMonths(endYM, 119), endYM }
-    case 'max': return { startYM: earliestMonth, endYM }
+    case 'max': {
+      // Clamp: if earliestMonth is in the future (everything beyond today), collapse to single month
+      const startYM = earliestMonth > endYM ? endYM : earliestMonth
+      return { startYM, endYM }
+    }
     case 'ytd': {
       const startYM = toMonthKey(new Date().getFullYear(), 1)
-      // Clamp: if Jan of current year is beyond latestMonth, use latestMonth
+      // Clamp: if Jan of current year is beyond endYM, use endYM
       return { startYM: startYM > endYM ? endYM : startYM, endYM }
     }
     default:
