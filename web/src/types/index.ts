@@ -17,10 +17,11 @@ export interface Asset {
   name: string
   category_id: string
   projected_yearly_growth: number | null   // null = inherit from parent Category (NOT optional ?)
-  location?: string
   notes?: string
   person_id: string                                // required; every asset must belong to a person
   created_at: string                       // ISO 8601 timestamp, immutable
+  show_from?: string                       // YYYY-MM, inclusive lower bound (Monthly Update visibility)
+  show_until?: string                      // YYYY-MM, inclusive upper bound (Monthly Update visibility)
 }
 
 export interface DataPoint {
@@ -62,18 +63,20 @@ export interface CreateAssetPayload {
   name: string
   category_id: string
   projected_yearly_growth: number | null
-  location?: string
   notes?: string
-  person_id: string   // required
+  person_id: string
+  show_from?: string | null   // YYYY-MM or null/undefined to clear
+  show_until?: string | null
 }
 
 export interface UpdateAssetPayload {
   name: string
   category_id: string
   projected_yearly_growth: number | null
-  location?: string
   notes?: string
-  person_id: string   // required
+  person_id: string
+  show_from?: string | null
+  show_until?: string | null
 }
 
 export interface CreatePersonPayload {

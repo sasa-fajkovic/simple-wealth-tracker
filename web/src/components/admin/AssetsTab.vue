@@ -6,6 +6,7 @@ import AssetModal from './AssetModal.vue'
 import DataTable from 'primevue/datatable'
 import Column from 'primevue/column'
 import Button from 'primevue/button'
+import Select from 'primevue/select'
 import Message from 'primevue/message'
 import Skeleton from 'primevue/skeleton'
 import Dialog from 'primevue/dialog'
@@ -37,6 +38,7 @@ const error = ref<string | null>(null)
 const retryCount = ref(0)
 const sortField = ref('name')
 const sortOrder = ref<1 | -1>(1)
+const filterPersonId = ref<string | null>(null)
 const modal = ref<ModalState | null>(null)
 const saving = ref(false)
 const saveError = ref<string | null>(null)
@@ -75,6 +77,7 @@ const filteredCategoryIds = computed(() => new Set(filteredCategories.value.map(
 const displayRows = computed(() =>
   rows.value
     .filter(asset => filteredCategoryIds.value.has(asset.category_id))
+    .filter(asset => !filterPersonId.value || asset.person_id === filterPersonId.value)
     .map(asset => ({
       ...asset,
       categoryName: categoryMap.value[asset.category_id]?.name ?? asset.category_id,
@@ -167,7 +170,20 @@ async function handleForceConfirm() {
 
     <Skeleton v-if="loading" height="8rem" border-radius="8px" />
 
-    <div v-else-if="!error && displayRows.length === 0"
+    <div v-else-if="!error && persons.length > 0" class="mb-3 flex flex-wrap items-center gap-3">
+      <Select
+        v-model="filterPersonId"
+        :options="persons"
+        option-label="name"
+        option-value="id"
+        placeholder="All people"
+        show-clear
+        class="w-40"
+        :pt="{ root: { 'aria-label': 'Filter by person' } }"
+      />
+    </div>
+
+    <div v-if="!loading && !error && displayRows.length === 0"
       class="flex flex-col items-center justify-center py-16 text-center text-gray-400 dark:text-zinc-500">
       <i class="pi pi-inbox text-4xl mb-4 opacity-40" />
       <p class="text-base font-medium mb-1">No {{ tabLabel.toLowerCase() }} yet</p>
@@ -175,7 +191,7 @@ async function handleForceConfirm() {
     </div>
 
     <DataTable
-      v-else-if="!loading && !error"
+      v-if="!loading && !error && displayRows.length > 0"
       class="wt-admin-table"
       :value="displayRows"
       :sort-field="sortField"
@@ -207,13 +223,10 @@ async function handleForceConfirm() {
             class="inline-flex rounded-full px-2 py-1 text-xs font-semibold tabular-nums"
             :class="row.projected_yearly_growth === null
               ? 'bg-gray-100 text-gray-600 dark:bg-zinc-800 dark:text-zinc-400'
-              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'"
+              : row.projected_yearly_growth < 0
+                ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'
+                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'"
           >{{ row.growthFormatted }}</span>
-        </template>
-      </Column>
-      <Column field="location" header="Location">
-        <template #body="{ data: row }">
-          <span class="text-gray-600 dark:text-zinc-400">{{ row.location ?? '—' }}</span>
         </template>
       </Column>
       <Column field="notes" header="Notes">

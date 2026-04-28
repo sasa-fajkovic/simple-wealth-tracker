@@ -33,6 +33,8 @@ const rateInput = ref<number | null>(
     : null
 )
 const notes = ref(props.mode === 'edit' ? (props.item!.notes ?? '') : '')
+const showFrom = ref(props.mode === 'edit' ? (props.item!.show_from ?? '') : '')
+const showUntil = ref(props.mode === 'edit' ? (props.item!.show_until ?? '') : '')
 const validationError = ref<string | null>(null)
 
 const slugPreview = computed(() => props.mode === 'create' ? toSlug(name.value) : props.item!.id)
@@ -74,6 +76,21 @@ function handleSubmit() {
     validationError.value = `An entry with id '${slugPreview.value}' already exists. Choose a different name.`
     return
   }
+  const yearMonthRe = /^\d{4}-(0[1-9]|1[0-2])$/
+  const from = showFrom.value.trim()
+  const until = showUntil.value.trim()
+  if (from && !yearMonthRe.test(from)) {
+    validationError.value = 'Visible from must be YYYY-MM'
+    return
+  }
+  if (until && !yearMonthRe.test(until)) {
+    validationError.value = 'Visible until must be YYYY-MM'
+    return
+  }
+  if (from && until && from > until) {
+    validationError.value = 'Visible from must be on or before Visible until'
+    return
+  }
   validationError.value = null
   const storedRate = rateInput.value !== null ? rateInput.value / 100 : null
   if (props.mode === 'create') {
@@ -84,6 +101,8 @@ function handleSubmit() {
       projected_yearly_growth: storedRate,
       notes: notes.value.trim() || undefined,
       person_id: personId.value,
+      show_from: from || null,
+      show_until: until || null,
     })
   } else {
     props.onSave({
@@ -92,6 +111,8 @@ function handleSubmit() {
       projected_yearly_growth: storedRate,
       notes: notes.value.trim() || undefined,
       person_id: personId.value,
+      show_from: from || null,
+      show_until: until || null,
     })
   }
 }
@@ -131,6 +152,26 @@ function handleSubmit() {
     <div class="mb-3">
       <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Person</label>
       <Select v-model="personId" :options="personOptions" option-label="name" option-value="id" class="w-full" />
+    </div>
+    <div class="mb-3 grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Visible from (optional)</label>
+        <input
+          type="month"
+          v-model="showFrom"
+          class="w-full bg-white dark:bg-zinc-900 px-3 py-2 text-sm border border-gray-200 dark:border-zinc-700 rounded-md text-gray-900 dark:text-zinc-100"
+          placeholder="YYYY-MM"
+        />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-500 dark:text-zinc-400 mb-1">Visible until (optional)</label>
+        <input
+          type="month"
+          v-model="showUntil"
+          class="w-full bg-white dark:bg-zinc-900 px-3 py-2 text-sm border border-gray-200 dark:border-zinc-700 rounded-md text-gray-900 dark:text-zinc-100"
+          placeholder="YYYY-MM"
+        />
+      </div>
     </div>
     <p v-if="validationError" class="text-xs text-red-600 mt-2">{{ validationError }}</p>
     <p v-if="saveError" class="text-xs text-red-600 mt-2">{{ saveError }}</p>

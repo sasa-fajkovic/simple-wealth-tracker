@@ -29,6 +29,8 @@ interface MonthlyRow {
   existingValue: number | null
   inputValue: number | null
   rowError: string | null
+  showFrom: string | null
+  showUntil: string | null
 }
 
 interface SaveSummary {
@@ -132,6 +134,8 @@ const filteredRows = computed(() => rows.value.filter(row => {
   if (filterCategoryId.value && row.categoryId !== filterCategoryId.value) return false
   if (filterType.value && row.categoryType !== filterType.value) return false
   if (filterMissingOnly.value && row.existingDpId !== null) return false
+  if (row.showFrom && selectedMonth.value < row.showFrom) return false
+  if (row.showUntil && selectedMonth.value > row.showUntil) return false
   return true
 }))
 
@@ -144,7 +148,7 @@ const hasCopyForwardCandidates = computed(() =>
 )
 
 const itemsToSaveCount = computed(() =>
-  rows.value.filter(r =>
+  filteredRows.value.filter(r =>
     r.inputValue !== null && (r.inputValue !== r.existingValue || !r.existingDpId)
   ).length
 )
@@ -209,6 +213,8 @@ function buildRows(currDps: DataPoint[], prevDps: DataPoint[]): void {
         existingValue: currDp?.value ?? null,
         inputValue: currDp?.value ?? null,
         rowError: null,
+        showFrom: asset.show_from ?? null,
+        showUntil: asset.show_until ?? null,
       }
     })
     .sort((a, b) =>
@@ -375,7 +381,7 @@ async function saveAll(): Promise<void> {
   let skipped = 0
   let localFailed = 0
 
-  for (const row of rows.value) {
+  for (const row of filteredRows.value) {
     if (row.inputValue === null) {
       skipped++
       continue
