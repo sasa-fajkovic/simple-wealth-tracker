@@ -643,9 +643,9 @@ async function saveAll(): Promise<void> {
           data-testid="monthly-row"
           class="wt-card p-4"
           :class="row.rowError
-            ? 'border-l-4 border-l-red-400'
+            ? 'border-l-4 border-l-red-500'
             : hasBigChange(row)
-              ? 'border-l-4 border-l-amber-400 bg-amber-50/60 dark:bg-amber-900/10'
+              ? 'border-l-4 border-l-red-400 bg-red-100 dark:bg-red-900/30'
               : row.existingDpId
                 ? 'border-l-4 border-l-emerald-400'
                 : ''"
@@ -717,7 +717,7 @@ async function saveAll(): Promise<void> {
               :class="row.rowError
                 ? 'bg-red-50/50 dark:bg-red-900/10'
                 : hasBigChange(row)
-                  ? 'bg-amber-50/60 dark:bg-amber-900/10'
+                  ? 'bg-red-100 dark:bg-red-900/30'
                   : ''"
             >
               <td class="py-2 pr-3 font-medium text-gray-900 dark:text-zinc-100">{{ row.assetName }}</td>
