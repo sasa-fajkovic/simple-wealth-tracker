@@ -482,10 +482,10 @@ const categoryBreakdownGroups = computed(() => {
                       :aria-pressed="!effectiveHidden.has(cat.id)"
                       :disabled="excludeLiabilities && cat.type === 'liability'"
                       :class="[
-                        'flex w-full items-center justify-between gap-2 py-1 rounded border-0 bg-transparent text-left cursor-pointer transition-opacity',
+                        'flex w-full items-center justify-between gap-2 py-1 rounded border-0 bg-transparent text-left transition-opacity',
                         excludeLiabilities && cat.type === 'liability'
                           ? 'cursor-not-allowed opacity-50'
-                          : 'hover:bg-gray-50 dark:hover:bg-zinc-800/60',
+                          : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800/60',
                         effectiveHidden.has(cat.id) ? 'opacity-40' : 'opacity-100',
                       ]"
                       @click="toggleCategory(cat.id)"

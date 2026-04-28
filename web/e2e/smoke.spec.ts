@@ -416,7 +416,7 @@ test.describe('Projections page', () => {
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: /Toggle: exclude liabilities/i }).click()
 
-    const liabilityRow = page.locator('button:disabled').filter({ hasText: category.name })
+    const liabilityRow = page.locator('#assumptions-panel button:disabled').filter({ hasText: category.name })
     await expect(liabilityRow).toBeVisible()
     await expect(liabilityRow).toHaveCSS('cursor', 'not-allowed')
   })
@@ -587,12 +587,12 @@ test.describe('Income page', () => {
 
     await page.goto('/income')
     await page.waitForLoadState('networkidle')
-    await expect(page.getByText('Income by Person', { exact: true })).toBeVisible()
+    await expect(page.getByRole('paragraph').filter({ hasText: 'Income by Person' })).toBeVisible()
     await expect(page.getByText(personA.name).last()).toBeVisible()
     await expect(page.getByText(personB.name).last()).toBeVisible()
 
     await page.getByRole('button', { name: `Show only ${personA.name}` }).click()
-    await expect(page.getByText('Top Income Sources')).toBeVisible()
+    await expect(page.getByText('Income Sources', { exact: true })).toBeVisible()
     await expect(page.getByText(salaryA.name)).toBeVisible()
   })
 
@@ -616,7 +616,7 @@ test.describe('Income page', () => {
     await page.waitForLoadState('networkidle')
     await page.getByTitle('Pie').click()
 
-    await expect(page.getByRole('heading', { name: 'Income by Person' })).toBeVisible()
+    await expect(page.getByRole('paragraph').filter({ hasText: 'Income by Person' })).toBeVisible()
     await expect(page.getByText('Net Worth Trend')).toHaveCount(0)
   })
 })
@@ -722,7 +722,7 @@ test.describe('Analytics page', () => {
     await page.goto('/analytics')
     await page.waitForLoadState('networkidle')
 
-    await expect(page.getByText('Asset Drilldown')).toBeVisible()
+    await expect(page.getByText('Drilldown', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: new RegExp(category.name) }).click()
     await expect(page.getByText(firstAsset.name)).toBeVisible()
     await expect(page.getByText(secondAsset.name)).toBeVisible()
