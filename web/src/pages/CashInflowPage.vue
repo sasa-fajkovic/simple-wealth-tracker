@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { getSummary, getPersons, getAssets, ApiError } from '../api/client'
 import type { SummaryResponse, RangeKey, Person, Asset } from '../types/index'
 import ChartTypeSelector from '../components/ChartTypeSelector.vue'
+import ChartCard from '../components/ui/ChartCard.vue'
 import WealthChart from '../components/WealthChart.vue'
 import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
@@ -388,17 +389,9 @@ function onChartPointClick(payload: { monthIndex: number; datasetIndex: number; 
         </div>
       </div>
 
-      <div v-else-if="displayData" class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4">
-        <div class="mb-3">
-          <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">
-            {{ chartTitle }}
-          </h2>
-          <p class="mt-1 text-xs text-gray-400 dark:text-zinc-500">
-            {{ chartSubtitle }}
-          </p>
-        </div>
+      <ChartCard v-else-if="displayData" :title="chartTitle" :subtitle="chartSubtitle">
         <WealthChart :data="displayData" :chart-type="chartType" @point-click="onChartPointClick" />
-      </div>
+      </ChartCard>
     </div>
   </div>
 </template>

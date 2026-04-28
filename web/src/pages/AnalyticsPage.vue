@@ -32,6 +32,7 @@ import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
 import Button from 'primevue/button'
+import ChartCard from '../components/ui/ChartCard.vue'
 import { useTheme } from '../composables/useTheme'
 import { useDataRefresh } from '../composables/useDataRefresh'
 import { getChartTokens, buildTooltipDefaults, wealthColors } from '../theme/tokens'
@@ -953,14 +954,12 @@ function signedEur(v: number) {
 
         <!-- Row 1: Net Worth Trend + Allocation Doughnut -->
         <div class="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 mb-4">
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">Net Worth Trend</h2>
+          <ChartCard title="Net Worth Trend">
             <div class="h-[280px]">
               <Line :data="(trendData as ChartData<'line'>)" :options="(trendOptions as ChartOptions<'line'>)" />
             </div>
-          </div>
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">Asset Allocation</h2>
+          </ChartCard>
+          <ChartCard title="Asset Allocation">
             <div class="h-[280px]">
               <Doughnut
                 v-if="allocationData.datasets[0]?.data?.length"
@@ -969,16 +968,18 @@ function signedEur(v: number) {
               />
               <div v-else class="flex items-center justify-center h-full text-gray-400 dark:text-zinc-500 text-sm">No asset data</div>
             </div>
-          </div>
+          </ChartCard>
         </div>
 
         <!-- Row 2: Top Contributors + Assets vs Liabilities -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-              <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">
+          <ChartCard>
+            <template #title>
+              <h2 class="text-sm font-semibold text-gray-900 dark:text-zinc-100 truncate">
                 Top {{ contributorMode === 'categories' ? 'Category' : contributorMode === 'assets' ? 'Asset' : 'Person' }} Contributors
               </h2>
+            </template>
+            <template #actions>
               <SelectButton
                 v-model="contributorMode"
                 :options="contributorModes"
@@ -987,7 +988,7 @@ function signedEur(v: number) {
                 aria-label="Contributor grouping"
                 class="whitespace-nowrap wt-touch-select wt-soft-select"
               />
-            </div>
+            </template>
             <div class="h-[280px]">
               <Bar
                 v-if="topContributorsData.labels?.length"
@@ -996,21 +997,17 @@ function signedEur(v: number) {
               />
               <div v-else class="flex items-center justify-center h-full text-gray-400 dark:text-zinc-500 text-sm">No data</div>
             </div>
-          </div>
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
-              {{ hasLiabilitySeries ? 'Assets vs Liabilities Over Time' : 'Gross Assets Over Time' }}
-            </h2>
+          </ChartCard>
+          <ChartCard :title="hasLiabilitySeries ? 'Assets vs Liabilities Over Time' : 'Gross Assets Over Time'">
             <div class="h-[280px]">
               <Bar :data="(assetsVsLiabilitiesData as ChartData<'bar'>)" :options="(assetsLiabilitiesOptions as ChartOptions<'bar'>)" />
             </div>
-          </div>
+          </ChartCard>
         </div>
 
         <!-- Row 3: Polar Area (conditional on 3+ categories) + Category Drilldown -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">Current Value Distribution (Polar Area)</h2>
+          <ChartCard title="Current Value Distribution (Polar Area)">
             <div class="h-[300px]">
               <PolarArea
                 v-if="showPolar"
@@ -1021,7 +1018,7 @@ function signedEur(v: number) {
                 Not enough category data
               </div>
             </div>
-          </div>
+          </ChartCard>
           <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
             <div class="mb-3">
               <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1120,16 +1117,12 @@ function signedEur(v: number) {
 
         <!-- Row 4: Mixed Net Worth Bar+Line + Financial Profile Radar -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">
-              Net Worth vs. {{ hasCashInflowSeries ? 'Income' : 'Gross Assets' }} (Mixed)
-            </h2>
+          <ChartCard :title="`Net Worth vs. ${hasCashInflowSeries ? 'Income' : 'Gross Assets'} (Mixed)`">
             <div class="h-[280px]">
               <Bar :data="(mixedData as unknown as ChartData<'bar'>)" :options="(mixedOptions as ChartOptions<'bar'>)" />
             </div>
-          </div>
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-3">Financial Profile Radar</h2>
+          </ChartCard>
+          <ChartCard title="Financial Profile Radar">
             <div class="h-[280px]">
               <Radar
                 v-if="showRadar"
@@ -1140,14 +1133,12 @@ function signedEur(v: number) {
                 Not enough data for radar
               </div>
             </div>
-          </div>
+          </ChartCard>
         </div>
 
         <!-- Row 5: Scatter + Bubble (conditional on 2+ categories) -->
         <div v-if="showScatter || showBubble" class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Category Performance Scatter</h2>
-            <p class="text-xs text-gray-400 dark:text-zinc-500 mb-3">Current value vs. period change per category</p>
+          <ChartCard title="Category Performance Scatter" subtitle="Current value vs. period change per category">
             <div class="h-[280px]">
               <Scatter
                 v-if="showScatter"
@@ -1158,10 +1149,8 @@ function signedEur(v: number) {
                 Not enough data
               </div>
             </div>
-          </div>
-          <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
-            <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide mb-1">Portfolio Bubble Map</h2>
-            <p class="text-xs text-gray-400 dark:text-zinc-500 mb-3">Value × monthly delta; bubble size = relative magnitude</p>
+          </ChartCard>
+          <ChartCard title="Portfolio Bubble Map" subtitle="Value × monthly delta; bubble size = relative magnitude">
             <div class="h-[280px]">
               <Bubble
                 v-if="showBubble"
@@ -1172,7 +1161,7 @@ function signedEur(v: number) {
                 Not enough data
               </div>
             </div>
-          </div>
+          </ChartCard>
         </div>
 
         <!-- Empty state -->

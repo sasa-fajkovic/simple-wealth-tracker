@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { getProjections, getCategories, getAssets, ApiError } from '../api/client'
 import type { ProjectionsResponse, ProjectionScenario, Category, Asset } from '../types/index'
 import ProjectionsChart from '../components/ProjectionsChart.vue'
+import ChartCard from '../components/ui/ChartCard.vue'
 import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
@@ -504,14 +505,14 @@ const categoryBreakdownGroups = computed(() => {
               </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <ChartCard title="Net Worth Projection">
               <ProjectionsChart
                 :data="data"
                 :chart-type="chartType"
                 :hidden-categories="effectiveHidden"
                 @point-click="onProjectionsPointClick"
               />
-            </div>
+            </ChartCard>
           </div>
 
           <!-- ── Detail panels below chart ───────────────────────────────── -->

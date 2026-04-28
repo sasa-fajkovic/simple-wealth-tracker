@@ -19,6 +19,7 @@ import {
 } from 'chart.js'
 import type { SummaryResponse } from '../types/index'
 import { useTheme } from '../composables/useTheme'
+import ChartCard from './ui/ChartCard.vue'
 import { buildTooltipDefaults, getChartTokens, wealthColors } from '../theme/tokens'
 import { compactFmt, eurFmt } from '../utils/formatters'
 
@@ -195,31 +196,27 @@ const cardOptionsByKind = computed<Record<CardKind, ChartOptions<'line'>>>(() =>
 
 <template>
   <div class="flex flex-col gap-4">
-    <section class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
-      <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">Net Worth Trend</h2>
+    <ChartCard title="Net Worth Trend">
       <div class="h-[280px]">
         <Line
           :data="netWorthData"
           :options="netWorthChartOptions"
         />
       </div>
-    </section>
+    </ChartCard>
 
     <div class="grid grid-cols-1 gap-4 xl:grid-cols-3">
-      <section
+      <ChartCard
         v-for="card in cards"
         :key="card.title"
-        class="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-900"
+        :title="card.title"
+        :subtitle="card.subtitle"
       >
-        <div class="mb-3 flex items-start justify-between gap-3">
-          <div>
-            <h2 class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-zinc-400">{{ card.title }}</h2>
-            <p class="mt-1 text-xs text-gray-400 dark:text-zinc-500">{{ card.subtitle }}</p>
-          </div>
+        <template #actions>
           <p :class="['shrink-0 text-sm font-bold tabular-nums', card.valueClass]">
             {{ eurFmt.format(card.currentValue) }}
           </p>
-        </div>
+        </template>
         <div class="h-[320px]">
           <Line
             v-if="card.hasData"
@@ -230,7 +227,7 @@ const cardOptionsByKind = computed<Record<CardKind, ChartOptions<'line'>>>(() =>
             No data yet
           </div>
         </div>
-      </section>
+      </ChartCard>
     </div>
   </div>
 </template>
