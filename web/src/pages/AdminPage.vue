@@ -11,7 +11,11 @@ import TabPanel from 'primevue/tabpanel'
 import AssetsTab from '../components/admin/AssetsTab.vue'
 import CategoriesTab from '../components/admin/CategoriesTab.vue'
 import PeopleTab from '../components/admin/PeopleTab.vue'
+import ImportDialog from '../components/admin/ImportDialog.vue'
 import PageShell from '../components/ui/PageShell.vue'
+import { useDataRefresh } from '../composables/useDataRefresh'
+
+const { notifyReferenceDataChanged, notifyDataPointsChanged } = useDataRefresh()
 
 onMounted(() => {
   document.title = 'Admin — WealthTrack'
@@ -81,6 +85,13 @@ function exportData(): void {
   downloadFile('/api/v1/export/database', 'database.yaml')
   setTimeout(() => downloadFile('/api/v1/export/datapoints', 'datapoints.csv'), 250)
 }
+
+const importDialogVisible = ref(false)
+
+function onImported() {
+  notifyReferenceDataChanged()
+  notifyDataPointsChanged()
+}
 </script>
 
 <template>
@@ -105,6 +116,7 @@ function exportData(): void {
             >
               History / Corrections
             </RouterLink>
+            <Button label="Import" icon="pi pi-upload" severity="secondary" size="small" @click="importDialogVisible = true" />
             <Button label="Export" icon="pi pi-download" severity="secondary" size="small" @click="exportData" />
             <Button :label="createButtonLabel" icon="pi pi-plus" size="small" @click="openCreateDialog" />
           </div>
@@ -118,5 +130,6 @@ function exportData(): void {
         </TabPanels>
       </Tabs>
     </div>
+    <ImportDialog v-model:visible="importDialogVisible" @imported="onImported" />
   </PageShell>
 </template>

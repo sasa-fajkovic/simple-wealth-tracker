@@ -71,6 +71,7 @@ const personsRouter = (await import('../routes/persons.js')).default
 const dataPointsRouter = (await import('../routes/dataPoints.js')).default
 const summaryRouter = (await import('../routes/summary.js')).default
 const projectionsRouter = (await import('../routes/projections.js')).default
+const importRouter = (await import('../routes/import.js')).default
 
 function buildApp() {
   const app = new Hono()
@@ -87,6 +88,7 @@ function buildApp() {
   app.route('/api/v1/data-points', dataPointsRouter)
   app.route('/api/v1/summary', summaryRouter)
   app.route('/api/v1/projections', projectionsRouter)
+  app.route('/api/v1/import', importRouter)
   return app
 }
 
@@ -266,3 +268,101 @@ describe('GET /api/v1/projections', () => {
 
 // Silences the "no tests in file" complaint if a runner imports this file standalone.
 before(() => undefined)
+
+// ── Import ──────────────────────────────────────────────────────────────────
+describe('POST /api/v1/import', () => {
+  async function postMultipart(path: string, filename: string, content: string, contentType: string): Promise<Response> {
+    const fd = new FormData()
+    fd.append('file', new Blob([content], { type: contentType }), filename)
+    return app.fetch(new Request(`http://test${path}`, { method: 'POST', body: fd }))
+  }
+
+  test('rejects YAML upload with wrong extension', async () => {
+    const res = await postMultipart('/api/v1/import/database', 'pwned.txt', 'categories: []\nassets: []\npersons: []\n', 'text/yaml')
+    assert.equal(res.status, 400)
+    const body = await res.json() as { error: string }
+    assert.match(body.error, /extension/i)
+  })
+
+  test('rejects YAML missing required arrays', async () => {
+    const res = await postMultipart('/api/v1/import/database', 'db.yaml', 'categories: []\n', 'text/yaml')
+    assert.equal(res.status, 400)
+    const body = await res.json() as { error: string }
+    assert.match(body.error, /assets|persons/)
+  })
+
+  test('rejects YAML where asset references missing category', async () => {
+    const yaml = `
+categories: []
+persons: []
+assets:
+  - id: x
+    name: X
+    category_id: ghost
+    person_id: y
+    projected_yearly_growth: null
+    created_at: '2024-01-01T00:00:00Z'
+`
+    const res = await postMultipart('/api/v1/import/database', 'db.yaml', yaml, 'text/yaml')
+    assert.equal(res.status, 400)
+    const body = await res.json() as { error: string }
+    assert.match(body.error, /missing category/)
+  })
+
+  test('returns 409 with orphan report when assets that hold data points are missing', async () => {
+    // Seed db has data points for vanguard-vti. Remove that asset from upload.
+    const yaml = stringify({
+      categories: [{ id: 'cash', name: 'Cash', projected_yearly_growth: 0, color: '#22c55e', type: 'asset' }],
+      persons: [{ id: 'alice', name: 'Alice' }],
+      assets: [],
+    }, { lineWidth: 0 })
+    const res = await postMultipart('/api/v1/import/database', 'db.yaml', yaml, 'text/yaml')
+    assert.equal(res.status, 409)
+    const body = await res.json() as { needs_force: boolean; orphans: { kind: string; ids: string[] }[] }
+    assert.equal(body.needs_force, true)
+    assert.ok(body.orphans[0].ids.includes('vanguard-vti'))
+  })
+
+  test('rejects CSV with malformed header', async () => {
+    const res = await postMultipart('/api/v1/import/datapoints', 'dp.csv', 'foo,bar\n1,2\n', 'text/csv')
+    assert.equal(res.status, 400)
+    const body = await res.json() as { error: string }
+    assert.match(body.error, /CSV/)
+  })
+
+  test('returns 409 when CSV references unknown asset_ids', async () => {
+    const csv = 'id,asset_id,year_month,value,notes,created_at,updated_at\n' +
+      'dp-x,ghost-asset,2024-06,1000,,2024-06-01T00:00:00Z,2024-06-01T00:00:00Z\n'
+    const res = await postMultipart('/api/v1/import/datapoints', 'dp.csv', csv, 'text/csv')
+    assert.equal(res.status, 409)
+    const body = await res.json() as { needs_force: boolean; orphans: { ids: string[] }[] }
+    assert.equal(body.needs_force, true)
+    assert.ok(body.orphans[0].ids.includes('ghost-asset'))
+  })
+
+  test('successfully imports valid CSV that matches existing assets', async () => {
+    const csv = 'id,asset_id,year_month,value,notes,created_at,updated_at\n' +
+      'dp-import-1,vanguard-vti,2024-07,2000,,2024-07-01T00:00:00Z,2024-07-01T00:00:00Z\n'
+    const res = await postMultipart('/api/v1/import/datapoints', 'dp.csv', csv, 'text/csv')
+    assert.equal(res.status, 200)
+    const body = await res.json() as { ok: boolean; backup: string; counts: { data_points: number } }
+    assert.equal(body.ok, true)
+    assert.match(body.backup, /^backup_\d{4}-\d{2}-\d{2}_\d{2}_\d{2}_\d{2}_[a-f0-9]{8}_datapoints\.csv$/)
+    assert.equal(body.counts.data_points, 1)
+  })
+
+  test('successfully imports valid YAML with force=true even when orphans present', async () => {
+    const yaml = stringify({
+      categories: [{ id: 'cash', name: 'Cash', projected_yearly_growth: 0, color: '#22c55e', type: 'asset' }],
+      persons: [{ id: 'alice', name: 'Alice' }],
+      assets: [],
+    }, { lineWidth: 0 })
+    const fd = new FormData()
+    fd.append('file', new Blob([yaml], { type: 'text/yaml' }), 'db.yaml')
+    const res = await app.fetch(new Request('http://test/api/v1/import/database?force=true', { method: 'POST', body: fd }))
+    assert.equal(res.status, 200)
+    const body = await res.json() as { ok: boolean; counts: { categories: number; assets: number; persons: number } }
+    assert.equal(body.ok, true)
+    assert.equal(body.counts.assets, 0)
+  })
+})

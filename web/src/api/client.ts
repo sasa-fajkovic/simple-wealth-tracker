@@ -210,3 +210,37 @@ export async function deletePerson(id: string, reassignTo?: string): Promise<Del
   }
   throw new ApiError(res.status, 'Failed to delete person')
 }
+
+// ── Import ─────────────────────────────────────────────────────────────────────
+
+export interface ImportSuccess {
+  ok: true
+  backup: string
+  bytes: number
+  hash: string
+  counts: Record<string, number>
+}
+
+export interface ImportConflict {
+  ok: false
+  needs_force: true
+  message: string
+  orphans: { kind: string; ids: string[] }[]
+}
+
+export type ImportTarget = 'database' | 'datapoints'
+
+export async function importFile(target: ImportTarget, file: File, force = false): Promise<ImportSuccess | ImportConflict> {
+  const fd = new FormData()
+  fd.append('file', file)
+  const res = await fetch(`${BASE}/import/${target}${force ? '?force=true' : ''}`, {
+    method: 'POST',
+    body: fd,
+  })
+  const data = await res.json().catch(() => ({} as Record<string, unknown>))
+  if (res.ok) return { ok: true, ...(data as Omit<ImportSuccess, 'ok'>) }
+  if (res.status === 409 && (data as { needs_force?: boolean }).needs_force) {
+    return { ok: false, needs_force: true, message: (data as { message: string }).message, orphans: (data as { orphans: { kind: string; ids: string[] }[] }).orphans }
+  }
+  throw new ApiError(res.status, (data as { error?: string }).error ?? res.statusText)
+}
