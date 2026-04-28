@@ -281,17 +281,25 @@ const categoryDrilldownRows = computed(() => {
   // For Income drilldown, use the cash-inflow summary (the wealth summary doesn't include cash-inflow).
   const source = drilldownType.value === 'cash-inflow' ? cashInflowData.value : data.value
   if (!source) return []
+  // For asset & liability drilldown, "active in range" means the per-month series
+  // has any non-zero value within the selected range — this lets paid-off liabilities
+  // and sold-off assets still appear, matching what the trend charts above show.
+  // For income, value is cumulative across the range, so a strict !== 0 test is enough.
+  const hadActivity = (assetId: string) => {
+    const series = source.asset_series.find(s => s.asset_id === assetId)
+    return !!series && series.values.some(v => v !== 0)
+  }
   return [...source.category_breakdown]
-    .filter(row => row.value !== 0)
     .filter(row => row.category_type === drilldownType.value)
-    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
     .map(row => {
       const assets = source.asset_breakdown
-        .filter(asset => asset.category_id === row.category_id && asset.value !== 0)
+        .filter(asset => asset.category_id === row.category_id)
+        .filter(asset => drilldownType.value === 'cash-inflow' ? asset.value !== 0 : hadActivity(asset.asset_id))
         .sort((a, b) => Math.abs(b.value) - Math.abs(a.value) || a.asset_name.localeCompare(b.asset_name))
       return { ...row, assets }
     })
     .filter(row => row.assets.length > 0)
+    .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
 })
 
 const activeCategoryId = computed(() =>
