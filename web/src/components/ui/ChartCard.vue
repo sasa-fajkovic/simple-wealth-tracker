@@ -64,7 +64,7 @@ onBeforeUnmount(() => {
           v-if="title || subtitle || $slots.title"
           :type="props.disableExpand ? undefined : 'button'"
           :class="[
-            'min-w-0 text-left w-full',
+            'min-w-0 text-left w-full bg-transparent border-0 p-0 m-0',
             !props.disableExpand && 'group cursor-pointer hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 dark:focus-visible:ring-indigo-500/40 rounded',
           ]"
           @click="open"
