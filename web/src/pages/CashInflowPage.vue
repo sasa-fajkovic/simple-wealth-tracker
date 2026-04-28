@@ -256,10 +256,12 @@ function onChartPointClick(payload: { monthIndex: number; datasetIndex: number; 
   const month = monthRaw.slice(0, 7)
   const query: Record<string, string> = { month }
 
-  // Trend chart shows total only — no per-series filter
+  // Trend chart shows total only — no per-series filter (but carry active person)
   const isTotal = chartType.value === 'trend' || payload.datasetLabel === 'Total'
   const series = displayData.value.series[payload.datasetIndex]
-  if (!isTotal && series) {
+  if (isTotal) {
+    if (person.value !== null) query.person = person.value
+  } else if (series) {
     if (person.value === null) {
       // Grouped by person → series id IS person_id
       if (persons.value.some(p => p.id === series.category_id)) {
