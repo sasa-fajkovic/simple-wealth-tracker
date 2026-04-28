@@ -44,9 +44,9 @@ const tabLabels = computed(() => ({
 const createButtonLabel = computed(() => {
   switch (activeTab.value) {
     case '1':
-      return 'Add Income'
-    case '2':
       return 'Add Liability'
+    case '2':
+      return 'Add Income'
     case '3':
       return 'Add Category'
     case '4':
@@ -60,8 +60,8 @@ async function openCreateDialog() {
   await nextTick()
   const actions: Record<string, CreateAction | null> = {
     '0': assetTabRef.value,
-    '1': incomeTabRef.value,
-    '2': liabilityTabRef.value,
+    '1': liabilityTabRef.value,
+    '2': incomeTabRef.value,
     '3': categoriesTabRef.value,
     '4': peopleTabRef.value,
   }
@@ -92,8 +92,8 @@ function exportData(): void {
           <div class="overflow-x-auto">
             <TabList class="min-w-max">
               <Tab value="0" class="min-h-12">{{ tabLabels.assets }}</Tab>
-              <Tab value="1" class="min-h-12">{{ tabLabels.income }}</Tab>
-              <Tab value="2" class="min-h-12">{{ tabLabels.liabilities }}</Tab>
+              <Tab value="1" class="min-h-12">{{ tabLabels.liabilities }}</Tab>
+              <Tab value="2" class="min-h-12">{{ tabLabels.income }}</Tab>
               <Tab value="3" class="min-h-12">{{ tabLabels.categories }}</Tab>
               <Tab value="4" class="min-h-12">{{ tabLabels.people }}</Tab>
             </TabList>
@@ -111,8 +111,8 @@ function exportData(): void {
         </div>
         <TabPanels class="!bg-transparent !p-0">
           <TabPanel value="0" class="!p-4 sm:!p-5"><AssetsTab ref="assetTabRef" category-type="asset" @update:count="assetCount = $event" /></TabPanel>
-          <TabPanel value="1" class="!p-4 sm:!p-5"><AssetsTab ref="incomeTabRef" category-type="cash-inflow" @update:count="incomeCount = $event" /></TabPanel>
-          <TabPanel value="2" class="!p-4 sm:!p-5"><AssetsTab ref="liabilityTabRef" category-type="liability" @update:count="liabilityCount = $event" /></TabPanel>
+          <TabPanel value="1" class="!p-4 sm:!p-5"><AssetsTab ref="liabilityTabRef" category-type="liability" @update:count="liabilityCount = $event" /></TabPanel>
+          <TabPanel value="2" class="!p-4 sm:!p-5"><AssetsTab ref="incomeTabRef" category-type="cash-inflow" @update:count="incomeCount = $event" /></TabPanel>
           <TabPanel value="3" class="!p-4 sm:!p-5"><CategoriesTab ref="categoriesTabRef" @update:count="categoryCount = $event" /></TabPanel>
           <TabPanel value="4" class="!p-4 sm:!p-5"><PeopleTab ref="peopleTabRef" @update:count="peopleCount = $event" /></TabPanel>
         </TabPanels>
