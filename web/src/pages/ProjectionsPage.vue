@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { getProjections, getCategories, getAssets, ApiError } from '../api/client'
 import type { ProjectionsResponse, ProjectionScenario, Category, Asset } from '../types/index'
 import ProjectionsChart from '../components/ProjectionsChart.vue'
+import ChartCard from '../components/ui/ChartCard.vue'
 import SelectButton from 'primevue/selectbutton'
 import Skeleton from 'primevue/skeleton'
 import Message from 'primevue/message'
@@ -63,6 +65,13 @@ const loading   = ref(true)
 const error     = ref<string | null>(null)
 const retryCount = ref(0)
 const { referenceDataVersion, dataPointsVersion } = useDataRefresh()
+const router = useRouter()
+
+function onProjectionsPointClick(payload: { monthIndex: number; month: string; categoryId: string | null }) {
+  const query: Record<string, string> = { month: payload.month }
+  if (payload.categoryId) query.category = payload.categoryId
+  router.push({ path: '/monthly-update', query })
+}
 
 // ── Assumptions data ──────────────────────────────────────────────────────────
 const categories = ref<Category[]>([])
@@ -467,16 +476,30 @@ const categoryBreakdownGroups = computed(() => {
                     :key="cat.id"
                     class="text-xs"
                   >
-                    <!-- Category row -->
-                    <div class="flex items-center justify-between gap-2 py-1">
+                    <!-- Category row (click to toggle visibility on chart) -->
+                    <button
+                      type="button"
+                      :aria-pressed="!effectiveHidden.has(cat.id)"
+                      :disabled="excludeLiabilities && cat.type === 'liability'"
+                      :class="[
+                        'flex w-full items-center justify-between gap-2 py-1 rounded border-0 bg-transparent text-left transition-opacity',
+                        excludeLiabilities && cat.type === 'liability'
+                          ? 'cursor-not-allowed opacity-50'
+                          : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-800/60',
+                        effectiveHidden.has(cat.id) ? 'opacity-40' : 'opacity-100',
+                      ]"
+                      @click="toggleCategory(cat.id)"
+                    >
                       <span class="flex min-w-0 items-center gap-1.5">
                         <span class="w-2 h-2 rounded-full flex-shrink-0" :style="{ backgroundColor: cat.color }" />
-                        <span class="truncate font-medium text-gray-700 dark:text-zinc-300">{{ cat.name }}</span>
+                        <span :class="['truncate font-medium text-gray-700 dark:text-zinc-300', effectiveHidden.has(cat.id) ? 'line-through' : '']">
+                          {{ cat.name }}
+                        </span>
                       </span>
                       <span class="shrink-0 font-mono tabular-nums text-gray-900 dark:text-zinc-100">
                         {{ pctFmt.format(cat.projected_yearly_growth) }}/yr
                       </span>
-                    </div>
+                    </button>
                     <!-- Asset-level overrides -->
                     <div
                       v-for="asset in overrides"
@@ -485,24 +508,22 @@ const categoryBreakdownGroups = computed(() => {
                     >
                       <span class="truncate">↳ {{ asset.name }}</span>
                       <span class="shrink-0 font-mono tabular-nums text-indigo-600 dark:text-indigo-400">
-                        {{ pctFmt.format(asset.projected_yearly_growth!) }}/yr ✦
+                        {{ pctFmt.format(asset.projected_yearly_growth!) }}/yr
                       </span>
                     </div>
                   </div>
-                  <p class="text-gray-400 dark:text-zinc-500 pt-1 border-t border-gray-100 dark:border-zinc-800">
-                    ✦ asset-level override · others inherit category rate
-                  </p>
                 </div>
               </div>
             </div>
 
-            <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+            <ChartCard title="Net Worth Projection">
               <ProjectionsChart
                 :data="data"
                 :chart-type="chartType"
                 :hidden-categories="effectiveHidden"
+                @point-click="onProjectionsPointClick"
               />
-            </div>
+            </ChartCard>
           </div>
 
           <!-- ── Detail panels below chart ───────────────────────────────── -->

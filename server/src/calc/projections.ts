@@ -144,9 +144,19 @@ export function buildProjection(
 
       const annualRate = resolveGrowthRate(asset, categories) * rateMultiplier
       const monthlyRate = compoundMonthlyRate(annualRate)
+      // Safety clamps by category type:
+      //  - assets cannot be worth less than 0 (a depreciating car bottoms out at 0)
+      //  - liabilities cannot be worth more than 0 (a paid-off debt bottoms out at 0;
+      //    they're stored as negative numbers, so 0 is the "fully paid" ceiling)
+      // Non-finite inputs (NaN/Infinity from extreme user-typed rates < -100%) collapse to 0.
+      const clamp = cat.type === 'liability'
+        ? (x: number) => (Number.isFinite(x) && x < 0 ? x : 0)
+        : cat.type === 'asset'
+          ? (x: number) => (Number.isFinite(x) && x > 0 ? x : 0)
+          : (x: number) => (Number.isFinite(x) ? x : 0)
       let v = seed
       for (let i = 0; i < months.length; i++) {
-        v = v * (1 + monthlyRate)
+        v = clamp(v * (1 + monthlyRate))
         values[i] += v   // accumulate: multiple assets in same category sum together
       }
     }

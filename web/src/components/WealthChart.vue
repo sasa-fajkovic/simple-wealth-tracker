@@ -15,6 +15,9 @@ import {
   type ChartData,
   type ChartOptions,
   type TooltipItem,
+  type Chart,
+  type ChartEvent,
+  type ActiveElement,
 } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import type { Context as DatalabelsContext } from 'chartjs-plugin-datalabels'
@@ -44,6 +47,10 @@ const props = withDefaults(defineProps<{
 }>(), {
   hiddenCategories: () => new Set(),
 })
+
+const emit = defineEmits<{
+  'point-click': [payload: { monthIndex: number; datasetIndex: number; datasetLabel: string }]
+}>()
 
 const { theme } = useTheme()
 
@@ -144,6 +151,7 @@ const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
     // Liabilities: dashed line for visual distinction
     borderDash: s.category_type === 'liability' ? [5, 4] : undefined,
     stack: isArea ? (s.category_type === 'liability' ? 'liabilities' : 'assets') : undefined,
+    order: 1,
   }))
 
   if (showTotal.value) {
@@ -156,8 +164,9 @@ const chartData = computed((): ChartData<'line'> | ChartData<'bar'> => {
       fill: false,
       tension: 0.1,
       pointRadius: 0,
-      borderWidth: 2,
+      borderWidth: 3,
       stack: undefined,
+      order: 0,
     })
   }
 
@@ -182,9 +191,24 @@ const pieData = computed((): ChartData<'pie'> => {
 const pieOptions = computed((): ChartOptions<'pie'> => {
   const dark = theme.value === 'dark'
   const t = getChartTokens(dark)
+  const lastMonthIndex = Math.max(0, props.data.months.length - 1)
   return {
     responsive: true,
     maintainAspectRatio: false,
+    onHover: setHoverCursor,
+    onClick: (_event, _elements, chart) => {
+      const native = _event.native as Event | undefined
+      if (!native) return
+      const hits = chart.getElementsAtEventForMode(native, 'nearest', { intersect: true }, true)
+      if (hits.length === 0) return
+      const sliceIndex = hits[0].index
+      const label = chart.data.labels?.[sliceIndex]
+      emit('point-click', {
+        monthIndex: lastMonthIndex,
+        datasetIndex: sliceIndex,
+        datasetLabel: typeof label === 'string' ? label : '',
+      })
+    },
     plugins: {
       legend: {
         display: false,
@@ -232,6 +256,28 @@ const pieOptions = computed((): ChartOptions<'pie'> => {
   }
 })
 
+function setHoverCursor(event: ChartEvent, elements: ActiveElement[]) {
+  const native = event.native as Event | undefined
+  const target = (native?.target ?? null) as HTMLElement | null
+  if (target && 'style' in target) {
+    target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
+  }
+}
+
+function emitChartPointClick(_event: ChartEvent, _elements: ActiveElement[], chart: Chart) {
+  const native = _event.native as Event | undefined
+  if (!native) return
+  const hits = chart.getElementsAtEventForMode(native, 'nearest', { intersect: true }, true)
+  if (hits.length === 0) return
+  const hit = hits[0]
+  const dataset = chart.data.datasets[hit.datasetIndex]
+  emit('point-click', {
+    monthIndex: hit.index,
+    datasetIndex: hit.datasetIndex,
+    datasetLabel: typeof dataset?.label === 'string' ? dataset.label : '',
+  })
+}
+
 const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => {
   const isTrend = props.chartType === 'trend'
   const isBar = props.chartType === 'bar'
@@ -242,6 +288,8 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
   return {
     responsive: true,
     maintainAspectRatio: false,
+    onHover: setHoverCursor,
+    onClick: emitChartPointClick,
     interaction: {
       mode: 'index',
       intersect: false,

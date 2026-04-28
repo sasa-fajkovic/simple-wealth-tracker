@@ -9,17 +9,38 @@ import { zodErrorHook as hook } from '../util/zodHook.js'
 
 const router = new Hono()
 
-const createSchema = z.object({
+const yearMonth = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'must be YYYY-MM')
+
+// Accept missing, null, empty string (clear), or YYYY-MM. Empty/null are normalized to undefined later.
+const yearMonthInput = z.union([yearMonth, z.literal(''), z.null()]).optional()
+
+const baseSchema = z.object({
   name: z.string().min(1, 'name is required'),
   category_id: z.string().min(1, 'category_id is required'),
   projected_yearly_growth: z.number().nullable(),
-  location: z.string().optional(),
   notes: z.string().optional(),
   person_id: z.string().min(1, 'person_id is required'),
+  show_from: yearMonthInput,
+  show_until: yearMonthInput,
 })
 
+function normalizeWindow<T extends { show_from?: string | null; show_until?: string | null }>(body: T): Omit<T, 'show_from' | 'show_until'> & { show_from?: string; show_until?: string } {
+  const out = { ...body } as Omit<T, 'show_from' | 'show_until'> & { show_from?: string; show_until?: string }
+  if (!body.show_from) delete out.show_from
+  else out.show_from = body.show_from
+  if (!body.show_until) delete out.show_until
+  else out.show_until = body.show_until
+  return out
+}
+
+const windowRefinement = (v: { show_from?: string | null; show_until?: string | null }) =>
+  !v.show_from || !v.show_until || v.show_from <= v.show_until
+const windowError = { message: 'show_from must be on or before show_until', path: ['show_until'] }
+
+const createSchema = baseSchema.refine(windowRefinement, windowError)
+
 // id optional only to detect change attempts in PUT
-const updateSchema = createSchema.extend({ id: z.string().optional() })
+const updateSchema = baseSchema.extend({ id: z.string().optional() }).refine(windowRefinement, windowError)
 
 // ASSET-01: GET all assets
 router.get('/', async (c) => {
@@ -40,7 +61,7 @@ router.post('/', zValidator('json', createSchema, hook), async (c) => {
     throw new HTTPException(409, { message: `Asset with id '${id}' already exists` })
   }
 
-  const asset: Asset = { id, ...body, created_at: new Date().toISOString() }
+  const asset: Asset = { id, ...normalizeWindow(body), created_at: new Date().toISOString() }
   await mutateDb(
     (db) => ({ ...db, assets: [...db.assets, asset] }),
     { action: 'asset.create', meta: { id: asset.id, name: asset.name, category_id: asset.category_id } },
@@ -62,9 +83,13 @@ router.put('/:id', zValidator('json', updateSchema, hook), async (c) => {
   if (idx === -1) throw new HTTPException(404, { message: 'Asset not found' })
 
   // Destructure _id out so updateData never re-applies id (noUnusedLocals: _ prefix is exempt)
-  const { id: _id, ...updateData } = body
-  // Spread existing first (preserves created_at), then updateData, then force id: paramId
-  const updated: Asset = { ...db.assets[idx], ...updateData, id: paramId }
+  const { id: _id, ...rest } = body
+  const updateData = normalizeWindow(rest)
+  // Spread existing first (preserves created_at), then drop window fields if cleared, then apply update
+  const merged: Asset = { ...db.assets[idx], ...updateData, id: paramId }
+  if (!updateData.show_from) delete (merged as { show_from?: string }).show_from
+  if (!updateData.show_until) delete (merged as { show_until?: string }).show_until
+  const updated = merged
   await mutateDb(
     (db) => {
       const assets = [...db.assets]

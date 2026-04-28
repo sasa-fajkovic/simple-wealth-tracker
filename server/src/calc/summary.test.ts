@@ -217,3 +217,77 @@ describe('aggregateSummary', () => {
     assert.equal(a1Breakdown?.period_delta_abs, 400)
   })
 })
+
+// ── flow mode (cash-inflow semantics) ────────────────────────────────────────
+
+describe('flow mode', () => {
+  const months3 = ['2024-01', '2024-02', '2024-03']
+
+  test('locfFill flow: missing months are 0 — no carry forward', () => {
+    const asset = makeAsset('a1')
+    const dp = makeDP('a1', '2024-01', 500, '2024-01-01T00:00:00.000Z')
+    const result = locfFill(months3, [dp], [asset], 'flow')
+    const a1 = result.get('a1')!
+    assert.equal(a1.get('2024-01'), 500, 'dp month: exact value')
+    assert.equal(a1.get('2024-02'), 0, 'no dp: must be 0 (flow zero-fill)')
+    assert.equal(a1.get('2024-03'), 0, 'no dp: must be 0 (flow zero-fill)')
+  })
+
+  test('aggregateSummary flow: current_total equals sum of totals', () => {
+    const cat = makeCategory('cat1', 'Salary')
+    const asset = makeAsset('a1', 'cat1')
+    const dps = [
+      makeDP('a1', '2024-01', 1000, '2024-01-01T00:00:00.000Z'),
+      makeDP('a1', '2024-02', 2000, '2024-02-01T00:00:00.000Z'),
+      makeDP('a1', '2024-03', 1500, '2024-03-01T00:00:00.000Z'),
+    ]
+    const locfData = locfFill(months3, dps, [asset], 'flow')
+    const result = aggregateSummary([asset], [cat], locfData, months3, 'flow')
+    assert.equal(result.current_total, 4500, 'current_total = sum across range, not last')
+    assert.equal(result.totals[0] + result.totals[1] + result.totals[2], 4500)
+  })
+
+  test('aggregateSummary flow: breakdown values are sums across range', () => {
+    const cat = makeCategory('cat1', 'Salary')
+    const a1 = makeAsset('a1', 'cat1')
+    const a2 = makeAsset('a2', 'cat1')
+    const dps = [
+      makeDP('a1', '2024-01', 1000, '2024-01-01T00:00:00.000Z'),
+      makeDP('a1', '2024-03', 1500, '2024-03-01T00:00:00.000Z'),
+      makeDP('a2', '2024-02', 800, '2024-02-01T00:00:00.000Z'),
+    ]
+    const locfData = locfFill(months3, dps, [a1, a2], 'flow')
+    const result = aggregateSummary([a1, a2], [cat], locfData, months3, 'flow')
+    const a1Row = result.asset_breakdown.find(r => r.asset_id === 'a1')
+    const a2Row = result.asset_breakdown.find(r => r.asset_id === 'a2')
+    assert.equal(a1Row?.value, 2500, 'a1 sum: 1000 + 0 + 1500')
+    assert.equal(a2Row?.value, 800, 'a2 sum: 0 + 800 + 0')
+    assert.equal(result.category_breakdown[0].value, 3300, 'cat sum: 2500 + 800')
+  })
+
+  test('aggregateSummary flow: monthly_delta and period_delta are zeroed', () => {
+    const cat = makeCategory('cat1', 'Salary')
+    const asset = makeAsset('a1', 'cat1')
+    const dps = [
+      makeDP('a1', '2024-01', 1000, '2024-01-01T00:00:00.000Z'),
+      makeDP('a1', '2024-03', 5000, '2024-03-01T00:00:00.000Z'),
+    ]
+    const locfData = locfFill(months3, dps, [asset], 'flow')
+    const result = aggregateSummary([asset], [cat], locfData, months3, 'flow')
+    assert.equal(result.monthly_delta_abs, 0, 'flow: delta semantics not meaningful')
+    assert.equal(result.period_delta_abs, 0, 'flow: delta semantics not meaningful')
+    assert.equal(result.period_delta_pct, 0, 'flow: delta semantics not meaningful')
+  })
+
+  test('flow: stale data point does not bleed into future months', () => {
+    // Algebra freelance income: last entered 2019-12, range is 2024
+    const asset = makeAsset('algebra', 'cat1')
+    const oldDP = makeDP('algebra', '2019-12', 400, '2019-12-01T00:00:00.000Z')
+    const months2024 = ['2024-01', '2024-02', '2024-03']
+    const locfData = locfFill(months2024, [oldDP], [asset], 'flow')
+    const algebra = locfData.get('algebra')!
+    assert.equal(algebra.get('2024-01'), 0)
+    assert.equal(algebra.get('2024-02'), 0)
+    assert.equal(algebra.get('2024-03'), 0)
+  })
+})

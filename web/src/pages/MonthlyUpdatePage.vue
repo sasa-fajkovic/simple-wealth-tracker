@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   getAssets, getCategories, getPersons, ApiError,
   getDataPointsForMonth, batchUpsertDataPoints,
@@ -29,6 +29,8 @@ interface MonthlyRow {
   existingValue: number | null
   inputValue: number | null
   rowError: string | null
+  showFrom: string | null
+  showUntil: string | null
 }
 
 interface SaveSummary {
@@ -54,7 +56,7 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => {
 })
 
 function formatValue(v: number | null): string {
-  return v === null ? '—' : eurFormatter.format(v)
+  return eurFormatter.format(v ?? 0)
 }
 
 function currentMonthStr(): string {
@@ -89,6 +91,7 @@ const rowsMonth = ref(selectedMonth.value)
 
 const filterPersonId = ref<string | null>(null)
 const filterCategoryId = ref<string | null>(null)
+const filterType = ref<'asset' | 'cash-inflow' | 'liability' | null>(null)
 const filterMissingOnly = ref(false)
 
 const initLoading = ref(true)
@@ -98,6 +101,20 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 const saveSummary = ref<SaveSummary | null>(null)
 const { referenceDataVersion, dataPointsVersion, notifyDataPointsChanged } = useDataRefresh()
+const route = useRoute()
+const router = useRouter()
+
+function isValidYearMonth(value: string): boolean {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) return false
+  const { year } = monthParts(value)
+  return year >= MIN_JUMP_YEAR && year <= MAX_JUMP_YEAR
+}
+
+function readQueryString(key: string): string | null {
+  const raw = route.query[key]
+  if (Array.isArray(raw)) return raw[0] ?? null
+  return typeof raw === 'string' && raw.length > 0 ? raw : null
+}
 
 // ── Derived ────────────────────────────────────────────────────────────────────
 
@@ -115,12 +132,15 @@ const selectedMonthNumber = computed({
 const filteredRows = computed(() => rows.value.filter(row => {
   if (filterPersonId.value && row.personId !== filterPersonId.value) return false
   if (filterCategoryId.value && row.categoryId !== filterCategoryId.value) return false
+  if (filterType.value && row.categoryType !== filterType.value) return false
   if (filterMissingOnly.value && row.existingDpId !== null) return false
+  if (row.showFrom && selectedMonth.value < row.showFrom) return false
+  if (row.showUntil && selectedMonth.value > row.showUntil) return false
   return true
 }))
 
 const hasFilters = computed(() =>
-  !!(filterPersonId.value || filterCategoryId.value || filterMissingOnly.value)
+  !!(filterPersonId.value || filterCategoryId.value || filterType.value || filterMissingOnly.value)
 )
 
 const hasCopyForwardCandidates = computed(() =>
@@ -128,7 +148,9 @@ const hasCopyForwardCandidates = computed(() =>
 )
 
 const itemsToSaveCount = computed(() =>
-  rows.value.filter(r => r.inputValue !== null).length
+  filteredRows.value.filter(r =>
+    r.inputValue !== null && (r.inputValue !== r.existingValue || !r.existingDpId)
+  ).length
 )
 
 const displayedMonth = computed(() => rowsMonth.value)
@@ -191,6 +213,8 @@ function buildRows(currDps: DataPoint[], prevDps: DataPoint[]): void {
         existingValue: currDp?.value ?? null,
         inputValue: currDp?.value ?? null,
         rowError: null,
+        showFrom: asset.show_from ?? null,
+        showUntil: asset.show_until ?? null,
       }
     })
     .sort((a, b) =>
@@ -205,7 +229,24 @@ onMounted(async () => {
   initLoading.value = true
   error.value = null
   try {
+    const queryMonth = readQueryString('month')
+    if (queryMonth && isValidYearMonth(queryMonth)) {
+      selectedMonth.value = queryMonth
+      selectedYearInput.value = String(monthParts(queryMonth).year)
+    }
     await loadReferenceData()
+    const queryPerson = readQueryString('person')
+    if (queryPerson && persons.value.some(p => p.id === queryPerson)) {
+      filterPersonId.value = queryPerson
+    }
+    const queryCategory = readQueryString('category')
+    if (queryCategory && categories.value.some(c => c.id === queryCategory)) {
+      filterCategoryId.value = queryCategory
+    }
+    if (queryMonth || queryPerson || queryCategory) {
+      // Strip query so a refresh doesn't re-apply (and a manual filter change isn't fought)
+      router.replace({ path: route.path, query: {} }).catch(() => {})
+    }
     await loadMonthData()
   } catch (e) {
     error.value = e instanceof ApiError ? e.message : 'Unexpected error loading data'
@@ -285,6 +326,7 @@ function jumpToCurrentMonth(): void {
 function clearFilters(): void {
   filterPersonId.value = null
   filterCategoryId.value = null
+  filterType.value = null
   filterMissingOnly.value = false
 }
 
@@ -304,6 +346,32 @@ function handleValueInput(row: MonthlyRow, e: Event): void {
   saveError.value = null
 }
 
+function hasBigChange(row: MonthlyRow): boolean {
+  if (row.inputValue === null || row.prevValue === null) return false
+  if (!Number.isFinite(row.inputValue) || !Number.isFinite(row.prevValue)) return false
+  if (row.prevValue === 0) return false
+  const ratio = Math.abs((row.inputValue - row.prevValue) / row.prevValue)
+  return ratio > 0.10
+}
+
+const TYPE_FILTER_OPTIONS = [
+  { label: 'Asset', value: 'asset' },
+  { label: 'Income', value: 'cash-inflow' },
+  { label: 'Liability', value: 'liability' },
+]
+
+function typeLabel(t: MonthlyRow['categoryType']): string {
+  if (t === 'asset') return 'Asset'
+  if (t === 'cash-inflow') return 'Income'
+  return 'Liability'
+}
+
+function typeBadgeClass(t: MonthlyRow['categoryType']): string {
+  if (t === 'asset') return 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
+  if (t === 'cash-inflow') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+  return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'
+}
+
 async function saveAll(): Promise<void> {
   saveError.value = null
   saveSummary.value = null
@@ -313,8 +381,12 @@ async function saveAll(): Promise<void> {
   let skipped = 0
   let localFailed = 0
 
-  for (const row of rows.value) {
+  for (const row of filteredRows.value) {
     if (row.inputValue === null) {
+      skipped++
+      continue
+    }
+    if (row.existingDpId && row.inputValue === row.existingValue) {
       skipped++
       continue
     }
@@ -369,11 +441,11 @@ async function saveAll(): Promise<void> {
         History / Corrections
       </RouterLink>
       <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:ml-auto sm:justify-end sm:gap-3">
-        <div class="inline-flex items-center gap-1" aria-label="Month navigation">
+        <div class="inline-flex items-center" aria-label="Month navigation">
           <Button
             icon="pi pi-chevron-left"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Previous month"
             @click="navigate(-1)"
           />
@@ -388,16 +460,16 @@ async function saveAll(): Promise<void> {
           <Button
             icon="pi pi-chevron-right"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Next month"
             @click="navigate(1)"
           />
         </div>
-        <div class="inline-flex items-center gap-1" aria-label="Year navigation">
+        <div class="inline-flex items-center" aria-label="Year navigation">
           <Button
             icon="pi pi-chevron-left"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Previous year"
             @click="navigateYear(-1)"
           />
@@ -420,7 +492,7 @@ async function saveAll(): Promise<void> {
           <Button
             icon="pi pi-chevron-right"
             text
-            class="hidden sm:inline-flex min-h-11 min-w-9 sm:min-w-10"
+            class="hidden sm:inline-flex min-h-11 !w-8 !px-0"
             aria-label="Next year"
             @click="navigateYear(1)"
           />
@@ -454,6 +526,15 @@ async function saveAll(): Promise<void> {
         placeholder="All categories"
         show-clear
         class="w-44"
+      />
+      <Select
+        v-model="filterType"
+        :options="TYPE_FILTER_OPTIONS"
+        option-label="label"
+        option-value="value"
+        placeholder="All types"
+        show-clear
+        class="w-36"
       />
       <div class="flex items-center gap-2">
         <Checkbox v-model="filterMissingOnly" :binary="true" input-id="missing-only" />
@@ -561,7 +642,13 @@ async function saveAll(): Promise<void> {
           :key="row.assetId"
           data-testid="monthly-row"
           class="wt-card p-4"
-          :class="row.rowError ? 'border-l-4 border-l-red-400' : row.existingDpId ? 'border-l-4 border-l-emerald-400' : ''"
+          :class="row.rowError
+            ? 'border-l-4 border-l-red-500'
+            : hasBigChange(row)
+              ? 'border-l-4 border-l-red-400 bg-red-100 dark:bg-red-900/30'
+              : row.existingDpId
+                ? 'border-l-4 border-l-emerald-400'
+                : ''"
         >
           <div class="flex items-start justify-between gap-2 mb-3">
             <div class="min-w-0">
@@ -570,9 +657,9 @@ async function saveAll(): Promise<void> {
                 {{ row.categoryName }} · {{ row.personName }}
               </p>
               <span
-                v-if="row.categoryType === 'liability'"
-                class="inline-block mt-1 text-xs px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400"
-              >Liability</span>
+                class="inline-block mt-1 text-xs px-1.5 py-0.5 rounded"
+                :class="typeBadgeClass(row.categoryType)"
+              >{{ typeLabel(row.categoryType) }}</span>
             </div>
             <div class="text-right shrink-0 text-xs text-gray-500 dark:text-zinc-400">
               <p>{{ displayedPrevMonth }}</p>
@@ -613,6 +700,7 @@ async function saveAll(): Promise<void> {
           <thead>
             <tr class="border-b border-gray-200 dark:border-zinc-700">
               <th class="text-left py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Asset</th>
+              <th class="text-left py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Type</th>
               <th class="text-left py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Category</th>
               <th class="text-left py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">Person</th>
               <th class="text-right py-2 pr-3 font-medium text-gray-500 dark:text-zinc-400 text-xs uppercase tracking-wide">{{ displayedPrevMonth }}</th>
@@ -625,10 +713,20 @@ async function saveAll(): Promise<void> {
               v-for="row in filteredRows"
               :key="row.assetId"
               data-testid="monthly-row"
-              class="border-b border-gray-100 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 transition-colors"
-              :class="row.rowError ? 'bg-red-50/50 dark:bg-red-900/10' : ''"
+              class="border-b border-gray-100 dark:border-zinc-800 transition-colors"
+              :class="row.rowError
+                ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
+                : hasBigChange(row)
+                  ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/40'
+                  : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'"
             >
               <td class="py-2 pr-3 font-medium text-gray-900 dark:text-zinc-100">{{ row.assetName }}</td>
+              <td class="py-2 pr-3">
+                <span
+                  class="inline-block text-xs px-1.5 py-0.5 rounded"
+                  :class="typeBadgeClass(row.categoryType)"
+                >{{ typeLabel(row.categoryType) }}</span>
+              </td>
               <td class="py-2 pr-3 text-gray-600 dark:text-zinc-400">{{ row.categoryName }}</td>
               <td class="py-2 pr-3 text-gray-600 dark:text-zinc-400">{{ row.personName }}</td>
               <td class="py-2 pr-3 text-right text-gray-500 dark:text-zinc-500 tabular-nums">

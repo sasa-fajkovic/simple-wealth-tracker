@@ -16,6 +16,9 @@ import {
   type TooltipItem,
   type LegendItem,
   type Plugin,
+  type Chart,
+  type ChartEvent,
+  type ActiveElement,
 } from 'chart.js'
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import type { ProjectionsResponse } from '../types/index'
@@ -45,6 +48,10 @@ const props = withDefaults(defineProps<{
 }>(), {
   hiddenCategories: () => new Set(),
 })
+
+const emit = defineEmits<{
+  'point-click': [payload: { monthIndex: number; month: string; categoryId: string | null }]
+}>()
 
 const { theme } = useTheme()
 
@@ -278,11 +285,54 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
   const isArea = props.chartType === 'area'
   const dark = theme.value === 'dark'
   const t = getChartTokens(dark)
+  const histLen = props.data.historical.months.length
+
+  function setHoverCursor(event: ChartEvent, _elements: ActiveElement[], chart: Chart) {
+    const native = event.native as Event | undefined
+    const target = (native?.target ?? null) as HTMLElement | null
+    if (!target || !('style' in target)) return
+    if (!native) {
+      target.style.cursor = 'default'
+      return
+    }
+    const hits = chart.getElementsAtEventForMode(native, 'nearest', { intersect: true }, true)
+    const isClickable = hits.some(hit => {
+      const ds = chart.data.datasets[hit.datasetIndex] as ProjDS
+      return ds._phase === 'historical' && hit.index < histLen
+    })
+    target.style.cursor = isClickable ? 'pointer' : 'default'
+  }
+
+  function onChartClick(event: ChartEvent, _elements: ActiveElement[], chart: Chart) {
+    const native = event.native as Event | undefined
+    if (!native) return
+    const hits = chart.getElementsAtEventForMode(native, 'nearest', { intersect: true }, true)
+    if (hits.length === 0) return
+    // Pick the first historical hit (skip projected-only datasets)
+    const hit = hits.find(h => {
+      const ds = chart.data.datasets[h.datasetIndex] as ProjDS
+      return ds._phase === 'historical' && h.index < histLen
+    })
+    if (!hit) return
+    const ds = chart.data.datasets[hit.datasetIndex]
+    const projDs = ds as ProjDS
+    const monthRaw = chart.data.labels?.[hit.index]
+    if (typeof monthRaw !== 'string') return
+    const month = monthRaw.slice(0, 7)
+    const isTotal = ds.label === 'Total' || ds.label === 'Total (projected)'
+    emit('point-click', {
+      monthIndex: hit.index,
+      month,
+      categoryId: !isTotal && projDs._categoryId ? projDs._categoryId : null,
+    })
+  }
 
   return {
     responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
+    onHover: setHoverCursor,
+    onClick: onChartClick,
     plugins: {
       legend: {
         labels: {

@@ -35,19 +35,20 @@ router.get('/', zValidator('query', querySchema, hook), async (c) => {
   const wealthAssets = db.assets.filter(a => wealthAssetIds.has(a.id))
   const wealthDataPoints = dataPoints.filter(dp => wealthAssetIds.has(dp.asset_id))
 
-  const { latestMonth, earliestMonth } = deriveMonthBounds(wealthDataPoints)
+  const { latestMonth, earliestMonth, currentMonth } = deriveMonthBounds(wealthDataPoints)
 
-  // Historical portion: max range (all data) using aggregateSummary
+  // Historical portion: from earliest data month → today (clamped to currentMonth so
+  // future-dated data points don't leak into the historical chart).
   // DO NOT reimplement LOCF or aggregation — reuse the tested functions from summary.ts
-  const { startYM, endYM } = getRangeBounds('max', latestMonth, earliestMonth)
+  const { startYM, endYM } = getRangeBounds('max', latestMonth, earliestMonth, currentMonth)
   const histMonths = monthRange(startYM, endYM)
   const locfData = locfFill(histMonths, wealthDataPoints, wealthAssets)
   const historical = aggregateSummary(wealthAssets, wealthCategories, locfData, histMonths)
 
-  // Projection portion: buildProjection derives its own latestMonth from dataPoints
-  // — same dataPoints array → boundary is guaranteed consistent (no overlap)
-  // No try/catch: errors propagate to app.onError in index.ts
-  const projection = buildProjection(wealthAssets, wealthCategories, wealthDataPoints, years, rateMultiplier)
+  // Projection seed: ignore future-dated data points so projection starts at "now",
+  // not at the latest future entry the user may have pre-loaded.
+  const seedPoints = wealthDataPoints.filter(dp => dp.year_month <= currentMonth)
+  const projection = buildProjection(wealthAssets, wealthCategories, seedPoints, years, rateMultiplier)
 
   // PROJ-05: combined response with both keys
   return c.json({ historical, projection })

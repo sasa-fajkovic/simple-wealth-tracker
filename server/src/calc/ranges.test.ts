@@ -84,8 +84,28 @@ describe('getRangeBounds', () => {
     assert.equal(r.startYM, '2024-05')
   })
 
-  test('currentMonth anchor: max range always uses latestMonth regardless of currentMonth', () => {
+  test('currentMonth anchor: max range ends at currentMonth (extends stale data)', () => {
     const r = getRangeBounds('max', '2019-12', '2019-01', '2025-04')
-    assert.equal(r.endYM, '2019-12')
+    assert.equal(r.endYM, '2025-04')
+    assert.equal(r.startYM, '2019-01')
+  })
+
+  test('currentMonth clamp: fixed range ignores future data points', () => {
+    // latestMonth = 2028-05 (future), currentMonth = 2026-04 → 1y ends at 2026-04
+    const r = getRangeBounds('1y', '2028-05', '2024-05', '2026-04')
+    assert.equal(r.endYM, '2026-04')
+    assert.equal(r.startYM, '2025-05')
+  })
+
+  test('currentMonth clamp: max range ignores future data points', () => {
+    const r = getRangeBounds('max', '2028-05', '2024-05', '2026-04')
+    assert.equal(r.endYM, '2026-04')
+    assert.equal(r.startYM, '2024-05')
+  })
+
+  test('currentMonth clamp: max with all-future data collapses to single month', () => {
+    const r = getRangeBounds('max', '2028-05', '2027-01', '2026-04')
+    assert.equal(r.endYM, '2026-04')
+    assert.equal(r.startYM, '2026-04')
   })
 })
