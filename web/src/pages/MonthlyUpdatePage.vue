@@ -649,7 +649,7 @@ async function saveAll(): Promise<void> {
           :class="row.rowError
             ? 'border-l-4 border-l-red-500'
             : hasBigChange(row)
-              ? 'border-l-4 border-l-red-400 bg-red-100 dark:bg-red-900/30'
+              ? 'border-l-4 border-l-amber-400 bg-amber-50 dark:bg-amber-900/20'
               : row.existingDpId
                 ? 'border-l-4 border-l-emerald-400'
                 : ''"
@@ -721,7 +721,7 @@ async function saveAll(): Promise<void> {
               :class="row.rowError
                 ? 'bg-red-50/50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20'
                 : hasBigChange(row)
-                  ? 'bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/40'
+                  ? 'bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100 dark:hover:bg-amber-900/30'
                   : 'hover:bg-gray-50 dark:hover:bg-zinc-800/50'"
             >
               <td class="py-2 pr-3 font-medium text-gray-900 dark:text-zinc-100">{{ row.assetName }}</td>
