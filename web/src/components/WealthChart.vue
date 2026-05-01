@@ -314,6 +314,20 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
             const y = (ctx.parsed as { y: number }).y
             return isTrend ? ` ${eurFmt.format(y)}` : `${ctx.dataset.label}: ${eurFmt.format(y)}`
           },
+          afterBody: (items: Array<TooltipItem<'line'> | TooltipItem<'bar'>>) => {
+            if (!isTrend) return ''
+            const idx = items[0]?.dataIndex
+            if (idx == null) return ''
+            const series = visibleSeries.value
+            if (series.length < 2) return ''
+            const rows = series
+              .map(s => ({ name: s.category_name, value: s.values[idx] ?? 0 }))
+              .filter(r => r.value > 0)
+              .sort((a, b) => b.value - a.value)
+            if (rows.length === 0) return ''
+            const lines = rows.map(r => `  ${r.name}: ${eurFmt.format(r.value)}`)
+            return ['', ...lines]
+          },
         },
       },
       datalabels: { display: false },
