@@ -15,7 +15,7 @@ export const CSV_PATH = process.env.DATA_POINTS_FILE ?? '/data/datapoints.csv'
 
 // STOR-05: auto-snapshot before every mutation so unintended overwrites
 // (e.g. accidental imports, bulk deletes) can be recovered from disk.
-const SNAPSHOT_RETENTION = Number(process.env.SNAPSHOT_RETENTION ?? 100)
+const SNAPSHOT_RETENTION = Number(process.env.SNAPSHOT_RETENTION ?? 1000)
 const SNAPSHOTS_ENABLED = process.env.SNAPSHOTS_ENABLED !== 'false'
 
 async function _snapshotPriorState(filePath: string): Promise<void> {
