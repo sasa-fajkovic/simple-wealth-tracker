@@ -1,5 +1,6 @@
-import { readFile, mkdir } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { readFile, mkdir, writeFile, readdir, unlink } from 'node:fs/promises'
+import { dirname, join, basename } from 'node:path'
+import { createHash } from 'node:crypto'
 import { parse, stringify } from 'yaml'
 import writeFileAtomic from 'write-file-atomic'
 import { dbMutex } from './mutex.js'
@@ -11,6 +12,49 @@ import { encodeDataPoints, decodeDataPoints } from './csv.js'
 export const DB_PATH = process.env.DATA_FILE ?? '/data/database.yaml'
 // CSV for data points — separate from config, survives container rebuilds alongside DB_PATH
 export const CSV_PATH = process.env.DATA_POINTS_FILE ?? '/data/datapoints.csv'
+
+// STOR-05: auto-snapshot before every mutation so unintended overwrites
+// (e.g. accidental imports, bulk deletes) can be recovered from disk.
+const SNAPSHOT_RETENTION = Number(process.env.SNAPSHOT_RETENTION ?? 100)
+const SNAPSHOTS_ENABLED = process.env.SNAPSHOTS_ENABLED !== 'false'
+
+async function _snapshotPriorState(filePath: string): Promise<void> {
+  if (!SNAPSHOTS_ENABLED) return
+  let raw: string
+  try {
+    raw = await readFile(filePath, 'utf8')
+  } catch (err) {
+    // ENOENT just means there's nothing to snapshot yet (first write)
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return
+    console.error(`snapshot read failed for ${filePath}: ${(err as Error).message}`)
+    return
+  }
+  try {
+    const snapDir = join(dirname(filePath), 'snapshots')
+    await mkdir(snapDir, { recursive: true })
+    const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+    const hash = createHash('sha256').update(raw).digest('hex').slice(0, 8)
+    const file = basename(filePath)
+    await writeFile(join(snapDir, `${ts}_${hash}_${file}`), raw)
+    await _pruneSnapshots(snapDir, file)
+  } catch (err) {
+    // never block a write because snapshotting failed
+    console.error(`snapshot write failed for ${filePath}: ${(err as Error).message}`)
+  }
+}
+
+async function _pruneSnapshots(dir: string, suffix: string): Promise<void> {
+  try {
+    const entries = await readdir(dir)
+    const matching = entries.filter(e => e.endsWith('_' + suffix)).sort()
+    while (matching.length > SNAPSHOT_RETENTION) {
+      const oldest = matching.shift()
+      if (oldest) await unlink(join(dir, oldest))
+    }
+  } catch {
+    // best-effort
+  }
+}
 
 // ── Private helpers (always called inside dbMutex.runExclusive) ────────────────
 
@@ -29,6 +73,7 @@ async function _readYaml(): Promise<Database> {
 }
 
 async function _writeYaml(db: Database): Promise<void> {
+  await _snapshotPriorState(DB_PATH)
   await writeFileAtomic(DB_PATH, stringify(db, { lineWidth: 0 }))
 }
 
@@ -52,6 +97,7 @@ async function _readCsv(): Promise<DataPoint[]> {
 
 async function _writeCsv(points: DataPoint[]): Promise<void> {
   await mkdir(dirname(CSV_PATH), { recursive: true })
+  await _snapshotPriorState(CSV_PATH)
   await writeFileAtomic(CSV_PATH, encodeDataPoints(points))
 }
 
