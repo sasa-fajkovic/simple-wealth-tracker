@@ -255,7 +255,7 @@ function onChartPointClick(payload: { monthIndex: number; datasetIndex: number; 
   const monthRaw = months[payload.monthIndex]
   if (!monthRaw) return
   const month = monthRaw.slice(0, 7)
-  const query: Record<string, string> = { month }
+  const query: Record<string, string> = { month, type: 'cash-inflow' }
 
   // Trend chart shows total only — no per-series filter (but carry active person)
   const isTotal = chartType.value === 'trend' || payload.datasetLabel === 'Total'

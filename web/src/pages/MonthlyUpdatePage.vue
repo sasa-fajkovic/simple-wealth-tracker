@@ -243,7 +243,11 @@ onMounted(async () => {
     if (queryCategory && categories.value.some(c => c.id === queryCategory)) {
       filterCategoryId.value = queryCategory
     }
-    if (queryMonth || queryPerson || queryCategory) {
+    const queryType = readQueryString('type')
+    if (queryType === 'asset' || queryType === 'cash-inflow' || queryType === 'liability') {
+      filterType.value = queryType
+    }
+    if (queryMonth || queryPerson || queryCategory || queryType) {
       // Strip query so a refresh doesn't re-apply (and a manual filter change isn't fought)
       router.replace({ path: route.path, query: {} }).catch(() => {})
     }
