@@ -57,7 +57,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div :class="containerClass">
-    <div class="flex items-start justify-between gap-2 mb-2">
+    <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
       <div class="min-w-0 flex-1">
         <component
           :is="props.disableExpand ? 'div' : 'button'"
