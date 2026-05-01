@@ -206,8 +206,9 @@ a {
 .wt-soft-select {
   display: inline-flex !important;
   width: max-content !important;
-  max-width: 100%;
-  align-self: flex-start;
+  min-width: 100%;
+  max-width: none;
+  align-self: stretch;
   gap: 0.25rem;
   padding: 0.125rem;
   border-radius: 0.625rem;
@@ -226,6 +227,17 @@ a {
   color: #6b7280 !important;
   box-shadow: none !important;
   padding-inline: 0.75rem !important;
+}
+
+/* PrimeVue ToggleButton renders an inner .p-togglebutton-content span that
+   gets its own background + shadow by default, producing a visible inner
+   pill nested inside the outer one. Reset it so only the outer button
+   shows its background and shadow. */
+.wt-soft-select .p-togglebutton-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 0 !important;
 }
 
 .wt-soft-select .p-togglebutton:focus,
