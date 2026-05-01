@@ -112,13 +112,13 @@ function onImported() {
           <div class="flex flex-wrap justify-end gap-2 lg:ml-auto lg:flex-nowrap">
             <RouterLink
               to="/data-points"
-              class="wt-soft-link"
+              class="wt-soft-link order-1 lg:order-1"
             >
               History / Corrections
             </RouterLink>
-            <Button label="Import" icon="pi pi-upload" severity="secondary" size="small" @click="importDialogVisible = true" />
-            <Button label="Export" icon="pi pi-download" severity="secondary" size="small" @click="exportData" />
-            <Button :label="createButtonLabel" icon="pi pi-plus" size="small" @click="openCreateDialog" />
+            <Button label="Import" icon="pi pi-upload" severity="secondary" size="small" class="order-3 lg:order-2" @click="importDialogVisible = true" />
+            <Button label="Export" icon="pi pi-download" severity="secondary" size="small" class="order-4 lg:order-3" @click="exportData" />
+            <Button :label="createButtonLabel" icon="pi pi-plus" size="small" class="order-2 lg:order-4" @click="openCreateDialog" />
           </div>
         </div>
         <TabPanels class="!bg-transparent !p-0">
