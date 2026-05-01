@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { RouterLink } from 'vue-router'
 import { getSummary, getPersons, getAssets, getCategories, ApiError } from '../api/client'
 import type { SummaryResponse, RangeKey, Person, Asset, Category } from '../types/index'
 import DashboardTrendCharts from '../components/DashboardTrendCharts.vue'
@@ -103,6 +104,16 @@ const inventoryCounts = computed(() => {
   )
 })
 
+// Empty-state detection: distinguish "no data at all" from "income data only"
+const hasWealthAssets = computed(() => inventoryCounts.value.asset > 0 || inventoryCounts.value.liability > 0)
+const hasIncomeAssets = computed(() => inventoryCounts.value['cash-inflow'] > 0)
+const showIncomeOnlyHint = computed(() =>
+  !inventoryLoading.value && !loading.value && !hasWealthAssets.value && hasIncomeAssets.value,
+)
+const showNoAssetsHint = computed(() =>
+  !inventoryLoading.value && !loading.value && !hasWealthAssets.value && !hasIncomeAssets.value,
+)
+
 function deltaClass(v: number) {
   return v >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
 }
@@ -146,6 +157,32 @@ function formatSignedEur(v: number) {
           <Button label="Retry loading data" link @click="retryCount++" />
         </div>
       </div>
+
+      <!-- Empty-state hints (after data loads) -->
+      <template v-if="showIncomeOnlyHint">
+        <div class="mb-4 rounded-lg border border-teal-200 dark:border-teal-700/60 bg-teal-50 dark:bg-teal-900/20 p-4">
+          <p class="text-sm font-semibold text-teal-900 dark:text-teal-100 mb-1">No wealth assets yet — only income data is tracked</p>
+          <p class="text-sm text-teal-800 dark:text-teal-200 mb-3">
+            Your imported data lives on the <RouterLink to="/income" class="underline font-medium">Income page</RouterLink>. To see net worth here, add assets (e.g. ETFs, vehicles, real estate) on the
+            <RouterLink to="/admin" class="underline font-medium">Setup page</RouterLink> and record values on the
+            <RouterLink to="/monthly-update" class="underline font-medium">Monthly Update page</RouterLink>.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <RouterLink to="/income"><Button label="Open Income" size="small" /></RouterLink>
+            <RouterLink to="/admin"><Button label="Add assets" size="small" severity="secondary" outlined /></RouterLink>
+          </div>
+        </div>
+      </template>
+      <template v-else-if="showNoAssetsHint">
+        <div class="mb-4 rounded-lg border border-amber-200 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-900/20 p-4">
+          <p class="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">No data to display</p>
+          <p class="text-sm text-amber-800 dark:text-amber-200 mb-3">
+            Get started by adding categories, assets and persons on the
+            <RouterLink to="/admin" class="underline font-medium">Setup page</RouterLink>, or import an existing dataset from there.
+          </p>
+          <RouterLink to="/admin"><Button label="Go to Setup" size="small" /></RouterLink>
+        </div>
+      </template>
 
       <!-- Metric cards row -->
       <template v-if="data && cashInflowData && !loading">
