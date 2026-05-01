@@ -70,7 +70,7 @@ function mobileLinkClass(active: boolean) {
   <!-- wt-nav applies safe-area-inset-left/right for notched devices -->
   <nav
     ref="menuRef"
-    class="wt-nav h-14 border-b flex items-center justify-between relative transition-colors"
+    class="wt-nav sticky top-0 z-30 h-14 border-b flex items-center justify-between relative transition-colors"
     :class="theme === 'dark' ? 'bg-zinc-900 border-zinc-700' : 'bg-white border-gray-200'"
   >
     <RouterLink
