@@ -31,6 +31,11 @@ ChartJS.register(
   Filler, Tooltip, Legend, ChartDataLabels,
 )
 
+const tickSmallFmt = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 1 })
+function formatProjectionTick(value: number): string {
+  return Math.abs(value) >= 1000 ? compactFmt.format(value) : tickSmallFmt.format(value)
+}
+
 type ProjectionChartType = 'area' | 'line' | 'bar'
 
 /** Marker fields added to each chart.js dataset for legend/tooltip filtering. */
@@ -389,7 +394,8 @@ const chartOptions = computed((): ChartOptions<'line'> | ChartOptions<'bar'> => 
         ticks: {
           color: t.tick,
           font: { size: 12 },
-          callback: (value) => compactFmt.format(value as number),
+          maxTicksLimit: 8,
+          callback: (value) => formatProjectionTick(value as number),
         },
       },
     },

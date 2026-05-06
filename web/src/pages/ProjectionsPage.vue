@@ -267,7 +267,6 @@ const categoryBreakdown = computed(() => {
     'cash-inflow': 2,
   }
   return [...data.value.historical.category_breakdown]
-    .filter(row => row.value !== 0)
     .sort((a, b) => rank[a.category_type] - rank[b.category_type] || Math.abs(b.value) - Math.abs(a.value))
 })
 
