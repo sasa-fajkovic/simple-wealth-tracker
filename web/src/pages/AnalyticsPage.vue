@@ -1029,15 +1029,10 @@ function signedEur(v: number) {
           </ChartCard>
           <div class="bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-700 p-4 shadow-sm min-w-0">
             <div class="mb-3">
-              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">
-                    Drilldown
-                  </h2>
-                  <p class="mt-1 text-xs text-gray-400 dark:text-zinc-500">
-                    Pick a category to see the individual {{ drilldownTypeLabel(drilldownType) }} behind it.
-                  </p>
-                </div>
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <h2 class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wide">
+                  Drilldown
+                </h2>
                 <SelectButton
                   v-model="drilldownType"
                   :options="drilldownTypeOptions"
@@ -1047,6 +1042,9 @@ function signedEur(v: number) {
                   class="wt-touch-select wt-soft-select whitespace-nowrap"
                 />
               </div>
+              <p class="mt-2 text-xs text-gray-400 dark:text-zinc-500">
+                Pick a category to see the individual {{ drilldownTypeLabel(drilldownType) }} behind it.
+              </p>
             </div>
 
             <div v-if="categoryDrilldownRows.length" class="grid grid-cols-1 sm:grid-cols-[170px_1fr] gap-3">
