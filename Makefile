@@ -1,7 +1,7 @@
 IMAGE   ?= wealthtrack
 TAG     ?= latest
 PORT    ?= 8080
-DATA    ?= $(dir $(PWD))simple-wealth-tracker-data
+DATA    ?= $(dir $(PWD))family-wealth-tracker-data
 
 .PHONY: install dev build docker-build docker-run docker-stop clean
 

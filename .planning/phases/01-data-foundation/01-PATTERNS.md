@@ -479,7 +479,7 @@ Files with no close match in the codebase (planner must use research files):
 
 ## Metadata
 
-**Analog search scope:** `/Users/sasa/Projects/simple-wealth-tracker/web/`, `cmd/`
+**Analog search scope:** `/Users/sasa/Projects/family-wealth-tracker/web/`, `cmd/`
 **Files scanned:** `web/package.json`, `web/tsconfig.json`, `web/src/App.tsx`, `web/src/main.tsx`, `cmd/server/main.go`, `go.mod`, `Dockerfile`
 **Research files used:** `STACK.md`, `ARCHITECTURE.md`, `PITFALLS.md`, `ROADMAP.md`, `REQUIREMENTS.md`, `01-CONTEXT.md`
 **Pattern extraction date:** 2026-04-22

@@ -3,7 +3,7 @@
 A self-hosted family net worth tracker with dead-simple data entry and beautiful visualizations. No cloud, no subscriptions — your data stays on your machine.
 
 ![Docker](https://img.shields.io/badge/docker-ready-blue)
-![License](https://img.shields.io/github/license/sasa-fajkovic/simple-wealth-tracker)
+![License](https://img.shields.io/github/license/sasa-fajkovic/family-wealth-tracker)
 
 ## Preview
 
@@ -33,7 +33,7 @@ docker run -d \
   --name wealthtrack \
   -p 8080:8080 \
   -v $(pwd)/data:/data \
-  ghcr.io/sasa-fajkovic/simple-wealth-tracker:latest
+  ghcr.io/sasa-fajkovic/family-wealth-tracker:latest
 
 # Open in browser
 open http://localhost:8080
@@ -45,7 +45,7 @@ Or with Docker Compose:
 # docker-compose.yml
 services:
   wealthtrack:
-    image: ghcr.io/sasa-fajkovic/simple-wealth-tracker:latest
+    image: ghcr.io/sasa-fajkovic/family-wealth-tracker:latest
     ports:
       - "8080:8080"
     volumes:

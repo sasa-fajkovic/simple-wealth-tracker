@@ -453,7 +453,7 @@ Create `docker-compose.yml` at project root with a single `wealthtrack` service:
 
 #### Plan 8.3: README Quickstart
 
-Replace the existing `README.md` placeholder with a complete quickstart: (1) Prerequisites (Docker + Docker Compose), (2) one-liner clone + start: `git clone ... && cd simple-wealth-tracker && docker compose up`, (3) access URL (`http://localhost:8080`), (4) data persistence note (data stored in `./data/database.yaml`, survives container restarts), (5) configuration (env vars: `DATA_FILE`, `PORT`), (6) liabilities convention (brief mention — negative values under a Liabilities category), (7) development setup (`cd server && npm run dev` + `cd web && npm run dev`). Keep it under 60 lines.
+Replace the existing `README.md` placeholder with a complete quickstart: (1) Prerequisites (Docker + Docker Compose), (2) one-liner clone + start: `git clone ... && cd family-wealth-tracker && docker compose up`, (3) access URL (`http://localhost:8080`), (4) data persistence note (data stored in `./data/database.yaml`, survives container restarts), (5) configuration (env vars: `DATA_FILE`, `PORT`), (6) liabilities convention (brief mention — negative values under a Liabilities category), (7) development setup (`cd server && npm run dev` + `cd web && npm run dev`). Keep it under 60 lines.
 
 **Verification:**
 - [ ] README contains a copy-pasteable `docker compose up` command
